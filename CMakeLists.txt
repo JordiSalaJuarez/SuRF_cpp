@@ -9,8 +9,8 @@ cmake_minimum_required (VERSION 3.8)
 project ("surf_file")
 
 # Include sub-projects.
-add_subdirectory ("surf")
-configure_file("data/test.txt" "surf/data/test.txt" COPYONLY)
+# add_subdirectory ("surf")
+# configure_file("data/test.txt" "surf/data/test.txt" COPYONLY)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -24,14 +24,14 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(
-  hello_test
+  surf_test
   "surf/test.cpp"
 )
 target_link_libraries(
-  hello_test
+  surf_test
   gtest_main
 )
 
 include(GoogleTest)
-gtest_discover_tests(hello_test)
+gtest_discover_tests(surf_test)
 
