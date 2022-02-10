@@ -164,7 +164,7 @@ struct LoudsDense {
         for (; i < n; i++)
             count += has_child[i].count();
         for(auto j = 0; j < m; j++)
-            count += has_child[i][j];
+            count += has_child[n][j];
         return count;
 	}
 
@@ -172,11 +172,10 @@ struct LoudsDense {
         auto n = (pos + 1) / 256; 
         auto m = (pos + 1) % 256;
         auto count = 0;
-        auto i = 0;
-        for (; i < n; i++)
+        for (auto i = 0; i < n; i++)
             count += labels[i].count();
         for(auto j = 0; j < m; j++)
-            count += labels[i][j];
+            count += labels[n][j];
         return count;
 	}
 
@@ -207,24 +206,24 @@ struct LoudsDense {
     }
 
     size_t value(size_t pos){
-        return rank_l(pos) - rank_c(pos) + rank_p(pos/256) - 1;
+        return rank_l(pos) - rank_c(pos) - 1; // + rank_p(pos/256)
     }
 
 
 
     bool look_up(const std::string& word) { 
-        for (auto level=0, pos=-1; level < size(word); level++){
+        auto pos = -1;
+        for (auto level=0; level < size(word); level++){
             pos = child(pos) + word[level];
             if (labels[pos/256][word[level]]) {
                 if (!has_child[pos/256][word[level]]){
                     auto suffix = values[value(pos)];
-                    return word.compare(level+1, size(suffix), suffix) == 0; // chech if the suffix is the same
+                    return strcmp(word.c_str() + level+1, suffix.c_str()) == 0; // chech if the suffix is the same
                 }
             } else
                 return false;
         }
-		return false;
-
+        return labels[child(pos)/256]['$']; // is prefix key
     }
 
 };
@@ -303,14 +302,15 @@ struct LoudsSparse {
     }
 
 	bool look_up(const std::string& word) {
-        for (auto level=0, pos=-1; level < size(word); level++){
+        auto pos = -1;
+        for (auto level=0; level < size(word); level++){
             pos = find(child_begin(pos), child_end(pos), word[level]);
 			if (pos == -1) return false; // failed to find char
             else if (!has_child[pos]){
                 auto suffix = values[value(pos)];
-                return word.compare(level+1, size(suffix), suffix) == 0; // chech if the suffix is the same
+                return strcmp(word.c_str() + level+1, suffix.c_str()) == 0; // chech if the suffix is the same
             }
         }
-		return false;
+		return find(child_begin(pos), child_end(pos), '$') != -1;
 	}
 };
