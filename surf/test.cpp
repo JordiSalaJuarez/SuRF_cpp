@@ -100,7 +100,7 @@ TEST(LoudsSparseTest, PrimitiveTrie) {
   vector<string> suffix =        { "a", "a", "", ""};
 
   auto builder = LoudsBuilder::from_stream(iss);
-  auto sparse = LoudsSparse<char>::from_builder(builder);
+  auto sparse = LoudsSparse::from_builder(builder);
   ASSERT_EQ(builder.n_levels, n_levels) << "Number of levels is wrong, expected " << n_levels;
   ASSERT_TRUE(eq(size(sparse.labels),size(sparse.has_child), size(sparse.louds), size(labels))) << "Not all sizes are the same";
   ASSERT_EQ(size(sparse.labels), size(labels));
@@ -118,14 +118,14 @@ TEST(LoudsSparseTest, PrimitiveTrie) {
   for (auto j=0; j < size(sparse.values); j++)
     EXPECT_EQ(sparse.values[j], suffix[j]) << "different values found at level position " << j; 
   
-  EXPECT_TRUE(sparse.look_up("aaa"));
-  EXPECT_TRUE(sparse.look_up("aba"));
-  EXPECT_TRUE(sparse.look_up("abb"));
-  EXPECT_TRUE(sparse.look_up("aca"));
-  EXPECT_FALSE(sparse.look_up("acb"));
-  EXPECT_FALSE(sparse.look_up("bca"));
-  EXPECT_FALSE(sparse.look_up("bcad"));
-  EXPECT_FALSE(sparse.look_up("dcae"));
+  EXPECT_TRUE(sparse.look_up("aaa").found);
+  EXPECT_TRUE(sparse.look_up("aba").found);
+  EXPECT_TRUE(sparse.look_up("abb").found);
+  EXPECT_TRUE(sparse.look_up("aca").found);
+  EXPECT_FALSE(sparse.look_up("acb").found);
+  EXPECT_FALSE(sparse.look_up("bca").found);
+  EXPECT_FALSE(sparse.look_up("bcad").found);
+  EXPECT_FALSE(sparse.look_up("dcae").found);
   
 }
 
@@ -151,7 +151,7 @@ TEST(LoudsSparseTest, ComplexTrie) {
   vector<string> suffix =   {"plice", "", "ther", "", "per", "", "ing", "", "en", "s", "per"};
 
   auto builder = LoudsBuilder::from_stream(iss);
-  auto sparse = LoudsSparse<char>::from_builder(builder);
+  auto sparse = LoudsSparse::from_builder(builder);
   ASSERT_EQ(builder.n_levels, n_levels) << "Number of levels is wrong, expected " << n_levels;
   ASSERT_TRUE(eq(size(sparse.labels),size(sparse.has_child), size(sparse.louds), size(labels))) << "Not all sizes are the same";
   ASSERT_EQ(size(sparse.labels), size(labels));
@@ -170,22 +170,22 @@ TEST(LoudsSparseTest, ComplexTrie) {
     EXPECT_EQ(sparse.values[j], suffix[j]) << "different values found at level position " << j; 
   
 
-  EXPECT_TRUE(sparse.look_up("f"));
-  EXPECT_TRUE(sparse.look_up("farther"));
-  EXPECT_TRUE(sparse.look_up("fas"));
-  EXPECT_TRUE(sparse.look_up("fasten"));
-  EXPECT_TRUE(sparse.look_up("fat"));
-  EXPECT_TRUE(sparse.look_up("splice"));
-  EXPECT_TRUE(sparse.look_up("topper"));
-  EXPECT_TRUE(sparse.look_up("toy"));
-  EXPECT_TRUE(sparse.look_up("tries"));
-  EXPECT_TRUE(sparse.look_up("tripper"));
-  EXPECT_TRUE(sparse.look_up("trying"));
-  EXPECT_FALSE(sparse.look_up("try"));
-  EXPECT_FALSE(sparse.look_up("top"));
-  EXPECT_FALSE(sparse.look_up("tor"));
-  EXPECT_FALSE(sparse.look_up("spline"));
-  EXPECT_FALSE(sparse.look_up("toys"));
+  EXPECT_TRUE(sparse.look_up("f").found);
+  EXPECT_TRUE(sparse.look_up("farther").found);
+  EXPECT_TRUE(sparse.look_up("fas").found);
+  EXPECT_TRUE(sparse.look_up("fasten").found);
+  EXPECT_TRUE(sparse.look_up("fat").found);
+  EXPECT_TRUE(sparse.look_up("splice").found);
+  EXPECT_TRUE(sparse.look_up("topper").found);
+  EXPECT_TRUE(sparse.look_up("toy").found);
+  EXPECT_TRUE(sparse.look_up("tries").found);
+  EXPECT_TRUE(sparse.look_up("tripper").found);
+  EXPECT_TRUE(sparse.look_up("trying").found);
+  EXPECT_FALSE(sparse.look_up("try").found);
+  EXPECT_FALSE(sparse.look_up("top").found);
+  EXPECT_FALSE(sparse.look_up("tor").found);
+  EXPECT_FALSE(sparse.look_up("spline").found);
+  EXPECT_FALSE(sparse.look_up("toys").found);
 }
 
 
@@ -212,7 +212,7 @@ TEST(LoudsDenseTest, PrimitiveTrie) {
   vector<std::bitset<256>> has_child =  {"a"_bs,  "b"_bs,  ""_bs };
   vector<string> suffix =               { "a", "a", "", ""};
   auto builder = LoudsBuilder::from_stream(iss);
-  auto dense = LoudsDense<char>::from_builder(builder);
+  auto dense = LoudsDense::from_builder(builder);
   ASSERT_EQ(builder.n_levels, n_levels) << "Number of levels is wrong, expected " << n_levels;
   ASSERT_TRUE(eq(size(dense.labels),size(dense.has_child), size(labels))) << "Not all sizes are the same";
   ASSERT_EQ(size(dense.labels), size(labels));
@@ -227,14 +227,14 @@ TEST(LoudsDenseTest, PrimitiveTrie) {
   for (auto j=0; j < size(dense.values); j++)
     EXPECT_EQ(dense.values[j], suffix[j]) << "different values found at level position " << j; 
 
-  EXPECT_TRUE(dense.look_up("aaa"));
-  EXPECT_TRUE(dense.look_up("aba"));
-  EXPECT_TRUE(dense.look_up("abb"));
-  EXPECT_TRUE(dense.look_up("aca"));
-  EXPECT_FALSE(dense.look_up("acb"));
-  EXPECT_FALSE(dense.look_up("bca"));
-  EXPECT_FALSE(dense.look_up("bcad"));
-  EXPECT_FALSE(dense.look_up("dcae"));
+  EXPECT_TRUE(dense.look_up("aaa").found);
+  EXPECT_TRUE(dense.look_up("aba").found);
+  EXPECT_TRUE(dense.look_up("abb").found);
+  EXPECT_TRUE(dense.look_up("aca").found);
+  EXPECT_FALSE(dense.look_up("acb").found);
+  EXPECT_FALSE(dense.look_up("bca").found);
+  EXPECT_FALSE(dense.look_up("bcad").found);
+  EXPECT_FALSE(dense.look_up("dcae").found);
 }
 
 TEST(LoudsDenseTest, ComplexTrie) {
@@ -257,7 +257,7 @@ TEST(LoudsDenseTest, ComplexTrie) {
   vector<string> suffix =               {"plice", "", "ther", "", "per", "", "ing", "", "en", "s", "per"};
 
   auto builder = LoudsBuilder::from_stream(iss);
-  auto dense = LoudsDense<char>::from_builder(builder);
+  auto dense = LoudsDense::from_builder(builder);
   ASSERT_EQ(builder.n_levels, n_levels) << "Number of levels is wrong, expected " << n_levels;
   ASSERT_TRUE(eq(size(dense.labels),size(dense.has_child), size(labels))) << "Not all sizes are the same";
   ASSERT_EQ(size(dense.labels), size(labels));
@@ -272,19 +272,81 @@ TEST(LoudsDenseTest, ComplexTrie) {
   for (auto j=0; j < size(dense.values); j++)
     EXPECT_EQ(dense.values[j], suffix[j]) << "different values found at level position " << j; 
 
-  EXPECT_TRUE(dense.look_up("f"));
-  EXPECT_TRUE(dense.look_up("farther"));
-  EXPECT_TRUE(dense.look_up("fas"));
-  EXPECT_TRUE(dense.look_up("fasten"));
-  EXPECT_TRUE(dense.look_up("fat"));
-  EXPECT_TRUE(dense.look_up("splice"));
-  EXPECT_TRUE(dense.look_up("topper"));
-  EXPECT_TRUE(dense.look_up("toy"));
-  EXPECT_TRUE(dense.look_up("tries"));
-  EXPECT_TRUE(dense.look_up("tripper"));
-  EXPECT_TRUE(dense.look_up("trying"));
-  EXPECT_FALSE(dense.look_up("try"));
-  EXPECT_FALSE(dense.look_up("top"));
-  EXPECT_FALSE(dense.look_up("tor"));
-  EXPECT_FALSE(dense.look_up("spline"));
+  EXPECT_TRUE(dense.look_up("f").found);
+  EXPECT_TRUE(dense.look_up("farther").found);
+  EXPECT_TRUE(dense.look_up("fas").found);
+  EXPECT_TRUE(dense.look_up("fasten").found);
+  EXPECT_TRUE(dense.look_up("fat").found);
+  EXPECT_TRUE(dense.look_up("splice").found);
+  EXPECT_TRUE(dense.look_up("topper").found);
+  EXPECT_TRUE(dense.look_up("toy").found);
+  EXPECT_TRUE(dense.look_up("tries").found);
+  EXPECT_TRUE(dense.look_up("tripper").found);
+  EXPECT_TRUE(dense.look_up("trying").found);
+  EXPECT_FALSE(dense.look_up("try").found);
+  EXPECT_FALSE(dense.look_up("top").found);
+  EXPECT_FALSE(dense.look_up("tor").found);
+  EXPECT_FALSE(dense.look_up("spline").found);
+}
+
+
+
+TEST(SurfTest, PrimitiveTrie) {
+  // using namespace std::string_literals;
+  std::stringstream iss;
+  iss << "aaa" << std::endl;
+  iss << "aba" << std::endl;
+  iss << "abb" << std::endl;
+  iss << "aca" << std::endl;
+
+
+  auto builder = LoudsBuilder::from_stream(iss);
+  auto surf = Surf::from_builder(builder, 1);
+  
+  EXPECT_TRUE(surf.look_up("aaa"));
+  EXPECT_TRUE(surf.look_up("aba"));
+  EXPECT_TRUE(surf.look_up("abb"));
+  EXPECT_TRUE(surf.look_up("aca"));
+  EXPECT_FALSE(surf.look_up("acb"));
+  EXPECT_FALSE(surf.look_up("bca"));
+  EXPECT_FALSE(surf.look_up("bcad"));
+  EXPECT_FALSE(surf.look_up("dcae"));
+  
+}
+
+TEST(SurfTest, ComplexTrie) {
+  // using namespace std::string_literals;
+  std::stringstream iss;
+  iss << "f" << std::endl;
+  iss << "farther" << std::endl;
+  iss << "fas" << std::endl;
+  iss << "fasten" << std::endl;
+  iss << "fat" << std::endl;
+  iss << "splice" << std::endl;
+  iss << "topper" << std::endl;
+  iss << "toy" << std::endl;
+  iss << "tries" << std::endl;
+  iss << "tripper" << std::endl;
+  iss << "trying" << std::endl;
+
+
+  auto builder = LoudsBuilder::from_stream(iss);
+  auto surf = Surf::from_builder(builder, 1);
+  
+  EXPECT_TRUE(surf.look_up("f"));
+  EXPECT_TRUE(surf.look_up("farther"));
+  EXPECT_TRUE(surf.look_up("fas"));
+  EXPECT_TRUE(surf.look_up("fasten"));
+  EXPECT_TRUE(surf.look_up("fat"));
+  EXPECT_TRUE(surf.look_up("splice"));
+  EXPECT_TRUE(surf.look_up("topper"));
+  EXPECT_TRUE(surf.look_up("toy"));
+  EXPECT_TRUE(surf.look_up("tries"));
+  EXPECT_TRUE(surf.look_up("tripper"));
+  EXPECT_TRUE(surf.look_up("trying"));
+  EXPECT_FALSE(surf.look_up("try"));
+  EXPECT_FALSE(surf.look_up("top"));
+  EXPECT_FALSE(surf.look_up("tor"));
+  EXPECT_FALSE(surf.look_up("spline"));
+  
 }

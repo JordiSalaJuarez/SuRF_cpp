@@ -77,7 +77,7 @@ int main()
 	auto &louds = builder.louds;
 
 
-	auto sparse = LoudsSparse<char>::from_builder(builder);
+	auto sparse = LoudsSparse::from_builder(builder);
 	
 
 	for (auto x : sparse.labels)

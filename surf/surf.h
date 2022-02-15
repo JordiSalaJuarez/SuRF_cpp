@@ -1,9 +1,12 @@
 #include<vector>
 #include<bitset>
 // #include<iterator>
-#include <algorithm>
-
+#include<algorithm>
+#include<span>
+#include<string.h>
 using namespace std;
+
+inline constexpr std::size_t failed_query = std::numeric_limits<std::size_t>::max();
 
 struct LoudsBuilder {
     public:
@@ -15,7 +18,6 @@ struct LoudsBuilder {
     size_t n_levels{};
 
     static LoudsBuilder from_stream(istream &input){
-
         LoudsBuilder result{};
         auto &labels = result.labels;
         auto &has_child = result.has_child;
@@ -116,31 +118,42 @@ struct LoudsBuilder {
 };
 
 
-template<typename T>
 struct LoudsDense {
     vector<std::bitset<256>> labels{};
     vector<std::bitset<256>> has_child{};
     vector<bool> is_prefix_key{};
     vector<string> values{};
+    size_t n_levels{};
+    size_t n_trailing_children{};
 
     static void merge_and_insert(const auto & vs, auto &r, size_t capacity){
         r.reserve(capacity);
         for (const auto &v: vs) r.insert(end(r), begin(v), end(v)); 
     }
 
-    static LoudsDense from_builder(LoudsBuilder &builder){
+    static LoudsDense from_builder(const LoudsBuilder &builder, size_t from_level = 0, size_t to_level = -1, size_t n_trailing_children=0){
+        
+        auto nested_size = [](auto vs){
+            auto sum = 0;
+            for (const auto& v: vs) sum += size(v);
+            return sum;
+        };
+        
+        if (to_level == -1) to_level = builder.n_levels;
         LoudsDense result{};
-        auto vs = builder.louds;
+        result.n_levels = to_level - from_level;
+        result.n_trailing_children = n_trailing_children;
+        auto builder_louds = span(begin(builder.louds)+from_level, begin(builder.louds) + to_level);
+        auto builder_suffix = span(begin(builder.suffix)+from_level, begin(builder.suffix) + to_level);
         auto sum_size = 0;
-        for (const auto &v: vs) sum_size += std::count(begin(v), end(v), true);
-        auto sum_size_values = 0;
-        for (const auto &v: builder.suffix) sum_size_values += size(v);
-        merge_and_insert(builder.suffix, result.values, sum_size_values);  
+        for (const auto &v: builder_louds) sum_size += std::count(begin(v), end(v), true);
+        auto sum_size_values = nested_size(builder_suffix);
+        merge_and_insert(builder_suffix, result.values, sum_size_values);  
         result.labels.reserve(sum_size);
         result.has_child.reserve(sum_size);
         result.is_prefix_key.reserve(sum_size);
         auto n = builder.n_levels;
-        for(auto level=0; level < n; level++){
+        for(auto level=from_level; level < to_level; level++){
             auto m = size(builder.louds[level]);
             for(auto i=0; i < m; i++){
                 if (builder.louds[level][i]){
@@ -211,43 +224,66 @@ struct LoudsDense {
 
 
 
-    bool look_up(const std::string& word) { 
-        auto pos = -1;
-        for (auto level=0; level < size(word); level++){
+    auto look_up(const std::string& word, size_t pos = -1, size_t from_level = 0) { 
+        struct Query{ bool found; size_t node;};
+        auto to_level = from_level + n_levels;
+        for (auto level = 0; level < to_level; level++){
+            if (level == size(word)){
+                return Query{
+                    .found = labels[child(pos)/256]['$'],
+                    .node = failed_query
+                };
+            }
             pos = child(pos) + word[level];
             if (labels[pos/256][word[level]]) {
                 if (!has_child[pos/256][word[level]]){
                     auto suffix = values[value(pos)];
-                    return strcmp(word.c_str() + level+1, suffix.c_str()) == 0; // chech if the suffix is the same
+                    return Query {
+                        .found = strcmp(word.c_str() + level+1, suffix.c_str()) == 0,
+                        .node = failed_query
+                    }; // chech if the suffix is the same
                 }
             } else
-                return false;
+                return Query{.found = false, .node = failed_query};
         }
-        return labels[child(pos)/256]['$']; // is prefix key
+        return Query{
+            .found = false,
+            .node = (child(pos) - 256*size(labels))/256
+        };
     }
 
 };
 
-template<typename T>
 struct LoudsSparse {
 
     vector<char> labels;
     vector<bool> has_child;
     vector<bool> louds;
     vector<string> values;
-
+    size_t n_levels{};
+    size_t n_trailing_children{};
 
     // decltype(this)
-    static LoudsSparse from_builder(LoudsBuilder &builder){
+    static LoudsSparse from_builder(const LoudsBuilder &builder, size_t from_level = 0, size_t to_level = -1, size_t n_trailing_children = 0){
+        if (to_level == -1) to_level = builder.n_levels;
         LoudsSparse result{};
+        result.n_levels = to_level - from_level;
+        result.n_trailing_children = n_trailing_children;
+        auto builder_labels = span(begin(builder.labels)+from_level, begin(builder.labels)+to_level);
+        auto builder_has_child = span(begin(builder.has_child)+from_level, begin(builder.has_child)+to_level);
+        auto builder_louds = span(begin(builder.louds)+from_level, begin(builder.louds)+to_level);
+        auto builder_suffix = span(begin(builder.suffix)+from_level, begin(builder.suffix)+to_level);
+        
         auto sum_size = 0;
-        for (const auto &v: builder.labels) sum_size += size(v);
-        merge_and_insert(builder.labels, result.labels, sum_size);
-        merge_and_insert(builder.has_child, result.has_child, sum_size);
-        merge_and_insert(builder.louds, result.louds, sum_size);
+        for (const auto &v: builder_labels) sum_size += size(v);
+        
+        merge_and_insert(builder_labels, result.labels, sum_size);
+        merge_and_insert(builder_has_child, result.has_child, sum_size);
+        merge_and_insert(builder_louds, result.louds, sum_size);
+
         auto sum_size_values = 0;
-        for (const auto &v: builder.suffix) sum_size_values += size(v);
-        merge_and_insert(builder.suffix, result.values, sum_size_values);
+        for (const auto &v: builder_suffix) sum_size_values += size(v);
+        merge_and_insert(builder_suffix, result.values, sum_size_values);
         return result;
     }
 
@@ -279,6 +315,12 @@ struct LoudsSparse {
 		return size(louds);
 	}
 
+    size_t find(size_t node, char c){
+        for (auto i = select_l(node+1); i < select_l(node+2); i++)
+            if (labels[i] == c) return i;
+        return -1;
+    }
+
     size_t find(size_t begin, size_t end, char c){
         for (auto i = begin; i < end; i++)
             if (labels[i] == c) return i;
@@ -286,11 +328,15 @@ struct LoudsSparse {
     }
 
     size_t child_begin(size_t pos){
-        return select_l(rank_c(pos) + 1);
+        return select_l(rank_c(pos) + 1 + n_trailing_children);
+    }
+
+    size_t child(size_t pos){
+        return select_l(rank_c(pos) + 1 + n_trailing_children);
     }
 
     size_t child_end(size_t pos){
-        return select_l(rank_c(pos) + 2);
+        return select_l(rank_c(pos) + 2 + n_trailing_children);
     }
 
     size_t parent(size_t pos){
@@ -301,16 +347,88 @@ struct LoudsSparse {
         return pos - rank_c(pos);
     }
 
-	bool look_up(const std::string& word) {
-        auto pos = -1;
-        for (auto level=0; level < size(word); level++){
-            pos = find(child_begin(pos), child_end(pos), word[level]);
-			if (pos == -1) return false; // failed to find char
+    // auto look_up(const std::string& word, size_t node = 0, size_t from_level = 0) {
+    //     struct Query{ bool found; size_t pos;}; 
+    //     auto to_level = from_level+n_levels;
+    //     for (auto level = from_level; level < to_level; level++){
+    //         if (level == size(word)){
+    //             auto pos = find(node, '$');
+    //             return Query {
+    //                 .found = pos != -1,
+    //                 .pos = 0
+    //             };
+    //         }else{
+    //             auto pos = find(node, word[level]);
+    //             if (pos == -1) return Query { .found = false, .pos = failed_query }; // failed to find char
+    //             else if (!has_child[pos]){
+    //                 auto suffix = values[value(pos)];
+    //                 auto next_node = rank_c(pos);
+    //                 return Query {
+    //                     .found = strcmp(word.c_str() + level+1, suffix.c_str()) == 0,
+    //                     .pos = next_node
+    //                 }; // chech if the suffix is the same
+    //             }
+    //             node = rank_c(pos);
+    //         }
+    //     }
+	// 	return Query {
+    //         .found = false,
+    //         .pos = 0
+    //     };
+	// }
+
+
+	auto look_up(const std::string& word, size_t node = 0, size_t from_level = 0) {
+        struct Query{ bool found; size_t node;}; 
+        auto to_level = from_level+n_levels;
+        auto pos_begin = select_l(node+1);
+        auto pos_end = select_l(node+2);
+        for (auto level = from_level; level < to_level; level++){
+            if (level == size(word)){
+                return Query {
+                    .found = find(pos_begin, pos_end, '$') != -1,
+                    .node = failed_query
+                };
+            }
+            auto pos = find(pos_begin, pos_end, word[level]);
+			if (pos == -1) return Query { .found = false, .node = failed_query }; // failed to find char
             else if (!has_child[pos]){
                 auto suffix = values[value(pos)];
-                return strcmp(word.c_str() + level+1, suffix.c_str()) == 0; // chech if the suffix is the same
+                return Query {
+                    .found = strcmp(word.c_str() + level+1, suffix.c_str()) == 0,
+                    .node = failed_query
+                }; // chech if the suffix is the same
             }
+            auto node = rank_c(pos); // get child node
+            pos_begin = select_l(node+1 + n_trailing_children); // get start pos node
+            pos_end = select_l(node+2 + n_trailing_children); // get end pos node
         }
-		return find(child_begin(pos), child_end(pos), '$') != -1;
+		return Query {
+            .found = false,
+            .node = node - rank_l(size(louds)-1) + 1
+        };
 	}
+};
+
+struct Surf {
+    unique_ptr<LoudsDense> ld;
+    unique_ptr<LoudsSparse> ls;
+    static Surf from_builder(const LoudsBuilder &builder, size_t n_dense_levels){
+        auto n_nodes_level = [&](auto level) {
+            return count(begin(builder.louds[level]), end(builder.louds[level]), true);
+        };
+        return Surf{
+            make_unique<LoudsDense>(LoudsDense::from_builder(builder,0, n_dense_levels)), 
+            make_unique<LoudsSparse>(LoudsSparse::from_builder(builder, n_dense_levels, -1, n_nodes_level(n_dense_levels) - 1))     
+        };
+    }
+
+    bool look_up(const std::string& word) {
+        auto [found_d, node_s] = ld->look_up(word);
+        if (found_d) return true;
+        if (node_s == failed_query) return false;
+        auto [found_l, pos_l] = ls->look_up(word, node_s, ld->n_levels);
+        return found_l;
+	}
+
 };
