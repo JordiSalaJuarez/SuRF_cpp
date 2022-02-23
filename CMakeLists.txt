@@ -6,8 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 cmake_minimum_required (VERSION 3.8)
 
 
-project ("surf_file")
-
+project (surf_file)
+add_executable(surf_file surf/surf_file.cpp)
+configure_file(data/input data/input COPYONLY)
 # Include sub-projects.
 # add_subdirectory ("surf")
 # configure_file("data/test.txt" "surf/data/test.txt" COPYONLY)

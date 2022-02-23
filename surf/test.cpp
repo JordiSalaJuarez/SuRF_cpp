@@ -350,3 +350,77 @@ TEST(SurfTest, ComplexTrie) {
   EXPECT_FALSE(surf.look_up("spline"));
   
 }
+
+
+
+TEST(LoudsDenseTest, PrimitiveTrieRange) {
+  // using namespace std::string_literals;
+  std::stringstream iss;
+  iss << "aaa" << std::endl;
+  iss << "aba" << std::endl;
+  iss << "abb" << std::endl;
+  iss << "aca" << std::endl;
+
+  
+  auto builder = LoudsBuilder::from_stream(iss);
+  auto dense = LoudsDense::from_builder(builder);
+  auto get_stats = [&](auto from, auto to){
+    struct stats {size_t count{0}; vector<string> words{};};
+    stats ans{};
+    auto count = 0;
+    for (auto it = dense.begin(from, to); it != dense.end(); ++it){
+      ans.count += 1;
+      ans.words.push_back(*it);
+    }
+    return ans;
+  };
+  auto stats1 = get_stats("aaa", "aba");
+  EXPECT_EQ(stats1.count, 2);
+  for(const auto word : {"aaa", "aba"}){
+    const auto& v = stats1.words;
+    EXPECT_TRUE(find(begin(v), end(v), word) != end(v)) << "Word " << word << " was not found" ;
+  }
+
+  auto stats2 = get_stats("ab", "aca");
+  EXPECT_EQ(stats2.count, 3);
+  for(const auto word : {"aba", "abb", "aca"}){
+    const auto& v = stats2.words;
+    EXPECT_TRUE(find(begin(v), end(v), word) != end(v)) << "Word " << word << " was not found" ;
+  }
+}
+
+TEST(LoudsSparseTest, PrimitiveTrieRange) {
+  // using namespace std::string_literals;
+  std::stringstream iss;
+  iss << "aaa" << std::endl;
+  iss << "aba" << std::endl;
+  iss << "abb" << std::endl;
+  iss << "aca" << std::endl;
+
+  
+  auto builder = LoudsBuilder::from_stream(iss);
+  auto sparse = LoudsSparse::from_builder(builder);
+  auto get_stats = [&](auto from, auto to){
+    struct stats {size_t count{0}; vector<string> words{};};
+    stats ans{};
+    auto count = 0;
+    for (auto it = sparse.begin(from, to); it != sparse.end(); ++it){
+      ans.count += 1;
+      ans.words.push_back(*it);
+    }
+    return ans;
+  };
+  auto stats1 = get_stats("aaa", "aba");
+  EXPECT_EQ(stats1.count, 2);
+  for(const auto word : {"aaa", "aba"}){
+    const auto& v = stats1.words;
+    EXPECT_TRUE(find(begin(v), end(v), word) != end(v)) << "Word " << word << " was not found" ;
+  }
+
+  auto stats2 = get_stats("ab", "aca");
+  EXPECT_EQ(stats2.count, 3);
+  for(const auto word : {"aba", "abb", "aca"}){
+    const auto& v = stats2.words;
+    EXPECT_TRUE(find(begin(v), end(v), word) != end(v)) << "Word " << word << " was not found" ;
+  }
+}
