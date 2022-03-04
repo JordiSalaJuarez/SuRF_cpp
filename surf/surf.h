@@ -55,7 +55,7 @@ struct LoudsBuilder {
                 // store suffix
                 suffix[end].emplace_back(key.substr(end+1));
             } else {
-                labels[end].emplace_back('$');
+                labels[end].emplace_back('\0');
                 has_child[end].emplace_back(false);
                 is_prefix[end].emplace_back(true);
                 louds[end].emplace_back(start != end);
@@ -72,7 +72,7 @@ struct LoudsBuilder {
 				resize<bool>(louds, n_levels);
             }
             has_child[i][size(has_child[i])] = true;
-            labels[i+1].emplace_back('$');
+            labels[i+1].emplace_back('\0');
             louds[i+1].emplace_back(true);
             has_child[i+1].emplace_back(false);
         };
@@ -123,14 +123,25 @@ struct LoudsBuilder {
 
 
 struct LoudsDense {
-
+    public:
     struct Iter {
+        size_t from_level;
+        size_t to_level;
+        size_t n_roots;
+        size_t node;
+        size_t pos;
+        bool has_child;
+        int level;
+        vector<size_t> idxs;
+        LoudsDense *louds;
+
         Iter(LoudsDense *louds, size_t node = 0, size_t from_level = 0, size_t n_roots = 0): 
             from_level{from_level},
             to_level{from_level + louds->n_levels},
             n_roots{n_roots},
             node{node},
             pos{0},
+            has_child{false},
             level{0}, 
             idxs(louds->n_levels, 0), 
             louds{louds}{}
@@ -142,19 +153,13 @@ struct LoudsDense {
                 else
                     return 256 * (node + n_roots);
             };
-            level = from_level;
-            while(true){
+            for(level = from_level; level < to_level; ++level){
                 auto begin_ = pos_node_first(node, level);
                 auto end_ = begin_ + 256;
-                if(louds->labels[begin_/256]['$']){
-                    idxs[level-from_level] = begin_ | '$';
-                    return *this;
-                }
                 for (pos = begin_; pos != end_; ++pos){
                     if (louds->labels[pos/256][pos%256]){
                         idxs[level-from_level] = pos;
                         if (louds->has_child[pos/256][pos%256]){
-                            ++level;
                             node = louds->rank_c(pos); // get child node
                             break;
                         } else {
@@ -163,6 +168,7 @@ struct LoudsDense {
                     }    
                 }
             }
+            has_child = louds->has_child[pos/256][pos%256];
             return *this;
         }
         Iter& end(){
@@ -189,22 +195,24 @@ struct LoudsDense {
                     }    
                 }
             }
+            has_child = louds->has_child[pos/256][pos%256];
             return *this;
         }
 
         auto operator *(){ // only necessary for testing
+            struct PrefixSuffix {
+                string prefix;
+                string suffix;
+            };
             string prefix{};
             prefix.reserve(level-from_level);
             auto i = 0;
             for (i = 0; i <= level-from_level; ++i){
                 prefix.push_back(idxs[i]%256);
             }
-            if (prefix.back() == '$') prefix.pop_back();
-            string suffix{louds->values[louds->value(pos)]};
-            struct PrefixSuffix {
-                string prefix;
-                string suffix;
-            };
+            if (prefix.back() == '\0') prefix.pop_back();
+            string suffix{has_child? "":louds->values[louds->value(pos)]};
+            
             return PrefixSuffix{prefix, suffix};
         }
 
@@ -239,7 +247,7 @@ struct LoudsDense {
             }
             pos = idxs[level];
             // pos is leaf
-
+            has_child = louds->has_child[pos/256][pos%256];
             return *this;
         }
 
@@ -273,217 +281,100 @@ struct LoudsDense {
             }
             pos = idxs[level];
             // pos is leaf
-
+            has_child = louds->has_child[pos/256][pos%256];
             return *this;
         }
-        // Iter& lb(string_view key){
-        //     auto find = [&](auto &container, size_t begin, size_t end){
-        //         auto i = begin;
-        //         while(i != end && !container[i/256][i%256]) ++i;
-        //         return i;
-        //     };
-        //     auto pos_node_first = [&](auto node, auto level) {
-        //         if (level == from_level)
-        //             return 256 * node;
-        //         else
-        //             return 256 * (node + n_roots);
-        //     };
-        //     auto pos_node_last = [&](auto node, auto level) {
-        //         if (level == from_level)
-        //             return 256 * (node+1);
-        //         else
-        //             return 256 * (node + n_roots + 1);
-        //     };
-        //     auto pos_node_ge = [&](auto node, auto level, auto value) {
-        //         auto begin = pos_node_first(node, level);
-        //         auto end = pos_node_last(node, level);
-        //         return find(louds->labels, begin + value , end);
-        //     };
-        //     auto on_boundary = true;
-        //     level = from_level;
-        //     while(true){
-        //         if (on_boundary){ // get closest value to boundary
-        //             pos = pos_node_ge(node, level, key[level]);
-        //             on_boundary = pos%256 == key[level] && level+1 < size(key);
-        //         }else if (louds->labels[level]['$']){
-        //             pos = (level << 8) | '$';
-        //             idxs[level-from_level] = pos;
-        //             return *this;
-        //         }else{ // get left-most value
-        //             pos = pos_node_ge(node, level, 0);
-        //         }
-        //         idxs[level-from_level] = pos; // set cursor to last pos
-        //         if (louds->has_child[pos/256][pos%256]){
-        //             ++level;
-        //             node = louds->rank_c(pos); // get child node
-        //         } else {
-        //             break;
-        //         }
-        //     }
-        //     return *this;
-        // }
+        Iter& lb(string_view key){
+            auto find = [&](auto &container, size_t begin, size_t end){
+                auto i = begin;
+                while(i != end && !container[i/256][i%256]) ++i;
+                return i;
+            };
+            auto pos_node_first = [&](auto node, auto level) {
+                if (level == from_level)
+                    return 256 * node;
+                else
+                    return 256 * (node + n_roots);
+            };
+            auto pos_node_last = [&](auto node, auto level) {
+                if (level == from_level)
+                    return 256 * (node+1);
+                else
+                    return 256 * (node + n_roots + 1);
+            };
+            auto pos_node_ge = [&](auto node, auto level, auto value) {
+                auto begin = pos_node_first(node, level);
+                auto end = pos_node_last(node, level);
+                return find(louds->labels, begin + value , end);
+            };
+            auto on_boundary = true;
+            level = from_level;
+            for(level = from_level; level < to_level; ++level){
+                if (on_boundary){ // get closest value to boundary
+                    pos = pos_node_ge(node, level, key[level]);
+                    on_boundary = pos%256 == key[level] && level+1 < size(key);
+                }else{ // get left-most value
+                    pos = pos_node_ge(node, level, 0);
+                }
+                idxs[level-from_level] = pos; // set cursor to last pos
+                if (louds->has_child[pos/256][pos%256] && pos/256 == (level == from_level? node:node+n_roots)){
+                    node = louds->rank_c(pos); // get child node
+                } else {
+                    return *this;
+                }
+            }
+            has_child = louds->has_child[pos/256][pos%256];
+            return *this;
+        }
 
-        // Iter& ub(string_view& key){
-        //     auto find_if_reverse = [&](auto &container, size_t begin, size_t end, auto &&pred){
-        //         auto i = begin;
-        //         while(i != end && !pred(container[i])) --i;
-        //         return i;
-        //     };
-        //     auto pos_node_first = [&](auto node, auto level) {
-        //         if (level == from_level)
-        //             return louds->select_l(node + 1);
-        //         else
-        //             return louds->select_l(node + 1 + n_roots);
-        //     };
-        //     auto pos_node_last = [&](auto node, auto level) {
-        //         if (level == from_level)
-        //             return louds->select_l(node + 2) - 1;
-        //         else
-        //             return louds->select_l(node + 2 + n_roots) - 1;
-        //     };
-        //     auto pos_node_le = [&](auto node, auto level, auto& key) {
-        //         auto begin = pos_node_last(node, level);
-        //         auto end = pos_node_first(node, level) - 1;
-        //         return find_if_reverse(louds->labels, begin, end, [&](char c){ return c <= key[level];});
-        //     };
-        //     auto on_boundary = true;
-        //     level = from_level;
-        //     while(true){
-        //         if (on_boundary){ // get closest value to boundary
-        //             pos = pos_node_le(node, level, key);
-        //             on_boundary = louds->labels[pos] == key[level] && level+1 < size(key);
-        //         }else { // get left-most value
-        //             pos = pos_node_last(node, level);
-        //         }
-        //         idxs[level-from_level] = pos; // set cursor to last pos
-        //         if (louds->has_child[pos]){
-        //             ++level;
-        //             node = louds->rank_c(pos); // get child node
-        //         } else {
-        //             break;
-        //         }
-        //     }
-        //     return *this;
-        // }
+        Iter& ub(string_view key){
+            auto find_reverse = [&](auto &container, size_t begin, size_t end){
+                auto i = begin;
+                while(i != end && !container[i/256][i%256]) --i;
+                return i;
+            };
+            auto pos_node_first = [&](auto node, auto level) {
+                if (level == from_level)
+                    return 256 * node;
+                else
+                    return 256 * (node + n_roots);
+            };
+            auto pos_node_last = [&](auto node, auto level) {
+                if (level == from_level)
+                    return 256 * (node+1) - 1;
+                else
+                    return 256 * (node + n_roots + 1) - 1;
+            };
+            auto pos_node_le = [&](auto node, auto level, auto key) {
+                auto end = pos_node_first(node, level);
+                return find_reverse(louds->labels, end+key, end-1);
+            };
+            auto on_boundary = true;
+            for(level = from_level; level < to_level; ++level){
+                if (on_boundary){ // get closest value to boundary
+                    pos = pos_node_le(node, level, key[level]);
+                    on_boundary = pos%256 == key[level] && level+1 < size(key);
+                }else { // get left-most value
+                    pos = pos_node_le(node, level, 255);
+                }
+                idxs[level-from_level] = pos; // set cursor to last pos
+                if (louds->has_child[pos/256][pos%256] && pos/256 == (level == from_level? node:node+n_roots)){
+                    node = louds->rank_c(pos); // get child node
+                } else {
+                    break;
+                }
+            }
+            has_child = louds->has_child[pos/256][pos%256];
+            return *this;
+        }
 
         friend bool operator==(const Iter& l, const Iter& r) {
             assert(l.louds == r.louds);
-            return l.idxs[l.level] == r.idxs[r.level];
+            return l.idxs[l.level-l.from_level] == r.idxs[r.level-r.from_level];
         }
 
-        size_t from_level;
-        size_t to_level;
-        size_t n_roots;
-        size_t node;
-        size_t pos;
-        int level;
-        vector<size_t> idxs;
-        LoudsDense *louds;
+ 
     };
-
-
-
-    // struct Iterator {
-    //     Iterator(string_view const& from, string_view const& to, LoudsDense *ptr):_begin(ptr->n_levels, 0),_end(ptr->n_levels, 255), _initialized(ptr->n_levels, 0), _from{from}, _to{to}, _ptr{ptr} {
-    //         find_next();
-    //     }
-        
-    //     Iterator& operator ++(){
-    //         find_next();
-    //         return *this;
-    //     }
-
-    //     string gen_word(){
-    //         string word;
-    //         auto suffix = _ptr->values[_ptr->value(_node * 256 + _begin[_curr_level] - 1)];
-    //         word.reserve(_curr_level+1+size(suffix));
-    //         for (auto i = 0; i < _curr_level; ++i){
-    //             word.push_back(_begin[i]-1);
-    //         }
-    //         if (!_prefix){
-    //             word.push_back(_begin[_curr_level]-1);
-    //             for (auto i = 0; i < size(suffix); i++){
-    //                 word.push_back(suffix[i]);
-    //             }
-    //         }
-    //         return word;
-    //     }
-
-    //     void find_next(){
-    //         do {
-                    
-    //             if(!_prefix && _ptr->labels[_node]['$']){
-    //                 _prefix = true;
-    //                 auto word = gen_word();
-    //                 if (_from.compare(word) <= 0 && word.compare(_to) <= 0){
-    //                     _query = optional<string>(word);
-    //                 } else {
-    //                     _query = nullopt;
-    //                 }
-    //                 return;
-    //             }
-    //             _prefix = false;
-    //             auto found = false; 
-    //             if (!_initialized[_curr_level]){
-    //                 _begin[_curr_level] = _curr_level < size(_from)? _from[_curr_level]:0;
-    //                 _end[_curr_level] = _curr_level < size(_from)? _to[_curr_level]:255; 
-    //                 _initialized[_curr_level] = true;
-    //             }
-    //             auto i = _begin[_curr_level];
-    //             while(i <= _end[_curr_level]){
-    //                 if (_ptr->labels[_node][i]){
-    //                     auto has_child = _ptr->has_child[_node][i];
-    //                     if (has_child){
-    //                         _node = _ptr->rank_c(_node * 256 + i); // compute child node
-    //                         _begin[_curr_level] = i+1;
-    //                         _curr_level +=1;
-    //                         found = true;
-    //                     }else{
-    //                         _begin[_curr_level] = i+1;
-    //                         auto word = gen_word();
-    //                         if (_from.compare(word) <= 0 && word.compare(_to) <= 0){
-    //                             _query = optional<string>(word);
-    //                         } else {
-    //                             _query = nullopt;
-    //                         }
-    //                         return;
-    //                     }   
-    //                     break;
-    //                 }
-    //                 if (i == _end[_curr_level]) break;
-    //                 i++;
-    //             }
-    //             if (!found){
-    //                 _initialized[_curr_level] = false;
-    //                 _curr_level -= 1;
-    //                 _node = _ptr->select_c(_node)/256; // compute parent node
-    //             }
-    //         } while( _curr_level >= 0 && _curr_level < _ptr->n_levels);
-    //         _query = nullopt;
-    //         return;
-    //     }
-    //     string operator *(){
-    //         return *_query;
-    //     }
-
-    //     vector<u_char> _begin, _end;
-    //     vector<bool> _initialized;
-    //     string_view _from, _to;
-    //     int _curr_level{0};
-    //     optional<string> _query{nullopt};
-    //     LoudsDense *_ptr;
-    //     size_t _node{0};
-    //     bool _prefix{false}; // Prefix key found
-
-    // };
-
-    // struct NullSentinel{
-    //     friend bool operator==(Iterator const& ptr, NullSentinel) {
-    //         return !ptr._query.has_value();
-    //     }
-    // };
-
-
 
     Iter begin(){
         return Iter{this}.begin();
@@ -493,13 +384,21 @@ struct LoudsDense {
         return Iter{this}.end();
     }
 
+    Iter lb(string_view key){
+        return Iter{this}.lb(key);
+    }
 
+    Iter ub(string_view key){
+        return Iter{this}.ub(key);
+    }
 
     vector<std::bitset<256>> labels{};
     vector<std::bitset<256>> has_child{};
     vector<bool> is_prefix_key{};
     vector<string> values{};
     size_t n_levels{};
+    size_t from_level{};
+    size_t to_level{};
     size_t n_trailing_children{};
     size_t max_size_key{};
 
@@ -518,6 +417,8 @@ struct LoudsDense {
         
         if (to_level == -1) to_level = builder.n_levels;
         LoudsDense result{};
+        result.from_level = from_level;
+        result.to_level = to_level;
         result.n_levels = to_level - from_level;
         result.n_trailing_children = n_trailing_children;
         result.max_size_key = builder.max_size_key;
@@ -608,7 +509,7 @@ struct LoudsDense {
         for (auto level = 0; level < to_level; level++){
             if (level == size(word)){
                 return Query{
-                    .found = labels[child(pos)/256]['$'],
+                    .found = labels[child(pos)/256]['\0'],
                     .node = failed_query
                 };
             }
@@ -633,11 +534,11 @@ struct LoudsDense {
 };
 
 struct LoudsSparse {
-
+    public:
     struct Iter {
-        Iter(LoudsSparse *louds, size_t node = 0, size_t from_level = 0): 
-            from_level{from_level},
-            to_level{from_level + louds->n_levels},
+        Iter(LoudsSparse *louds, size_t node = 0): 
+            from_level{louds->from_level},
+            to_level{louds->to_level},
             n_roots{louds->n_trailing_children},
             node{node},
             pos{0},
@@ -709,9 +610,9 @@ struct LoudsSparse {
                 auto end = pos_node_last(node, level) + 1;
                 return find_if(louds->labels, begin, end, [&](char c){ return key[level] <= c;});
             };
-            auto on_boundary = true;
-            level = from_level;
-            while(true){
+            level=from_level;
+            auto on_boundary = level+1 < size(key);
+            for(; level < to_level; ++level){
                 if (on_boundary){ // get closest value to boundary
                     pos = pos_node_ge(node, level, key);
                     on_boundary = louds->labels[pos] == key[level] && level+1 < size(key);
@@ -720,7 +621,6 @@ struct LoudsSparse {
                 }
                 idxs[level-from_level] = pos; // set cursor to last pos
                 if (louds->has_child[pos]){
-                    ++level;
                     node = louds->rank_c(pos); // get child node
                 } else {
                     break;
@@ -752,18 +652,17 @@ struct LoudsSparse {
                 auto end = pos_node_first(node, level) - 1;
                 return find_if_reverse(louds->labels, begin, end, [&](char c){ return c <= key[level];});
             };
-            auto on_boundary = true;
-            level = from_level;
-            while(true){
+            level=from_level;
+            auto on_boundary = level+1 < size(key);
+            for(; level < to_level; ++level){
                 if (on_boundary){ // get closest value to boundary
                     pos = pos_node_le(node, level, key);
-                    on_boundary = louds->labels[pos] == key[level] && level+1 < size(key);
+                    on_boundary = louds->labels[pos] == key[level] && level < size(key);
                 }else { // get left-most value
                     pos = pos_node_last(node, level);
                 }
                 idxs[level-from_level] = pos; // set cursor to last pos
                 if (louds->has_child[pos]){
-                    ++level;
                     node = louds->rank_c(pos); // get child node
                 } else {
                     break;
@@ -779,7 +678,7 @@ struct LoudsSparse {
             for (i = 0; i <= level-from_level; ++i){
                 prefix.push_back(louds->labels[idxs[i]]);
             }
-            if (prefix.back() == '$') prefix.pop_back();
+            if (prefix.back() == '\0') prefix.pop_back();
             string suffix{louds->values[louds->value(pos)]};
             struct PrefixSuffix {
                 string prefix;
@@ -795,15 +694,15 @@ struct LoudsSparse {
                 else
                     return louds->select_l(node + 1 + n_roots);
             };
-            if (idxs[level]+1 == size(louds->louds)) --level; // bounds check
-            while(louds->louds[++idxs[level]]){ // traversing upwards
+            if (idxs[level-from_level]+1 == size(louds->louds)) --level; // bounds check
+            while(louds->louds[++idxs[level-from_level]] ){ // traversing upwards
                 --level;
             }
-            while(louds->has_child[idxs[level]]){ // traversing downwards
-                idxs[level+1] = pos_node_first(louds->rank_c(idxs[level]), level + 1);
+            while(louds->has_child[idxs[level-from_level]]){ // traversing downwards
+                idxs[level-from_level+1] = pos_node_first(louds->rank_c(idxs[level-from_level]), level + 1);
                 ++level;
             }
-            pos = idxs[level];
+            pos = idxs[level-from_level];
             // pos is leaf
 
             return *this;
@@ -816,21 +715,21 @@ struct LoudsSparse {
                 else
                     return louds->select_l(node + 2 + n_roots) - 1;
             };
-            while(louds->louds[--idxs[level]+1]){ // traversing upwards
+            while(louds->louds[--idxs[level-from_level]+1]){ // traversing upwards
                 --level;
             }
             while(louds->has_child[idxs[level]]){ // traversing downwards
-                idxs[level+1] = pos_node_last(louds->rank_c(idxs[level]), level + 1);
+                idxs[level-from_level+1] = pos_node_last(louds->rank_c(idxs[level-from_level]), level + 1);
                 ++level;
             }
-            pos = idxs[level];
+            pos = idxs[level-from_level];
             // pos is leaf
 
             return *this;
         }
         friend bool operator==(const Iter& l, const Iter& r) {
             assert(l.louds == r.louds);
-            return l.idxs[l.level] == r.idxs[r.level];
+            return l.idxs[l.level-l.from_level] == r.idxs[r.level-l.from_level];
         }
         size_t from_level;
         size_t to_level;
@@ -845,17 +744,32 @@ struct LoudsSparse {
     Iter begin() {
         return Iter{this}.begin();
     }
+    Iter begin(size_t node) {
+        return Iter{this, node}.begin();
+    }
     
     Iter end() {
         return Iter{this}.end();
     }
 
+    Iter end(size_t node) {
+        return Iter{this, node}.end();
+    }
+
     Iter lb(string_view key) {
         return Iter{this}.lb(key);
+    }
+    
+    Iter lb(string_view key, size_t node) {
+        return Iter{this, node}.lb(key);
     }
 
     Iter ub(string_view key) {
         return Iter{this}.ub(key);
+    }
+
+    Iter ub(string_view key, size_t node) {
+        return Iter{this, node}.ub(key);
     }
 
     vector<char> labels;
@@ -863,6 +777,8 @@ struct LoudsSparse {
     vector<bool> louds;
     vector<string> values;
     size_t n_levels{};
+    size_t from_level{};
+    size_t to_level{};
     size_t n_trailing_children{};
     size_t max_size_key{};
 
@@ -873,6 +789,8 @@ struct LoudsSparse {
         result.n_levels = to_level - from_level;
         result.n_trailing_children = n_trailing_children;
         result.max_size_key = builder.max_size_key;
+        result.from_level = from_level;
+        result.to_level = to_level;
         auto builder_labels = span(std::begin(builder.labels)+from_level, std::begin(builder.labels)+to_level);
         auto builder_has_child = span(std::begin(builder.has_child)+from_level, std::begin(builder.has_child)+to_level);
         auto builder_louds = span(std::begin(builder.louds)+from_level, std::begin(builder.louds)+to_level);
@@ -959,7 +877,7 @@ struct LoudsSparse {
         for (auto level = from_level; level < to_level; level++){
             if (level == size(word)){
                 return Query {
-                    .found = find(pos_begin, pos_end, '$') != -1,
+                    .found = find(pos_begin, pos_end, '\0') != -1,
                     .node = failed_query
                 };
             }
@@ -984,15 +902,21 @@ struct LoudsSparse {
 };
 
 struct Surf {
+    public:
     unique_ptr<LoudsDense> ld;
     unique_ptr<LoudsSparse> ls;
+    size_t n_dense_levels;
+    size_t n_nodes_dense_levels;
     static Surf from_builder(const LoudsBuilder &builder, size_t n_dense_levels){
         auto n_nodes_level = [&](auto level) {
             return count(begin(builder.louds[level]), end(builder.louds[level]), true);
         };
+        auto n_nodes_dense_levels = n_nodes_level(n_dense_levels);
         return Surf{
             make_unique<LoudsDense>(LoudsDense::from_builder(builder,0, n_dense_levels)), 
-            make_unique<LoudsSparse>(LoudsSparse::from_builder(builder, n_dense_levels, -1, n_nodes_level(n_dense_levels) - 1))     
+            make_unique<LoudsSparse>(LoudsSparse::from_builder(builder, n_dense_levels, -1, n_nodes_dense_levels - 1)),
+            n_dense_levels,
+            (size_t) n_nodes_dense_levels     
         };
     }
 
@@ -1000,8 +924,34 @@ struct Surf {
         auto [found_d, node_s] = ld->look_up(word);
         if (found_d) return true;
         if (node_s == failed_query) return false;
-        auto [found_l, pos_l] = ls->look_up(word, node_s, ld->n_levels);
+        auto [found_l, pos_l] = ls->look_up(word, node_s, n_dense_levels);
         return found_l;
 	}
+
+    bool range_query(string_view lb, string_view ub){
+        auto lb_ld = string_view(lb.begin(), lb.begin()+ld->n_levels);
+        auto ub_ld = string_view(ub.begin(), ub.begin()+ld->n_levels);
+        auto lb_ls = string_view(lb.begin()+ld->n_levels, lb.end());
+        auto ub_ls = string_view(ub.begin()+ld->n_levels, ub.end());
+        auto it_ld = ld->lb(lb_ld);
+        auto end_ld = ld->ub(ub_ld);
+        while(true){
+            auto [prefix_ld, suffix_ld] = *it_ld;
+            if (it_ld.has_child){
+                auto node_ls = (ld->rank_c(it_ld.pos) - size(ld->labels))/256;
+                auto it_ls = ls->lb(lb_ls,node_ls);
+                auto end_ls = ls->ub(ub_ls,node_ls);
+                for (;it_ls != end_ls; ++it_ls){
+                    auto [prefix_ls, suffix_ls] = *it_ls;
+                    cout << prefix_ld << prefix_ls << suffix_ls << endl;
+                }
+            }else{
+                cout << prefix_ld << suffix_ld << endl;
+            }
+            if (it_ld != end_ld) ++it_ld;
+            else break;
+        }
+        return true;
+    }
 
 };

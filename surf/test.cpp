@@ -6,6 +6,7 @@
 #include <span>
 
 using namespace std;
+
 // Demonstrate some basic assertions.
 TEST(LoudsBuilderTest, PrimitiveTrie) {
   // using namespace std::string_literals;
@@ -59,7 +60,7 @@ TEST(LoudsBuilderTest, ComplexTrie) {
   iss << "trying" << std::endl;
 
   auto n_levels = 4;
-  std::vector<std::vector<char>> labels =     {{'f', 's', 't'}, {'$', 'a', 'o', 'r'}, {'r', 's', 't', 'p', 'y', 'i', 'y'}, {'$', 't', 'e', 'p'}};
+  std::vector<std::vector<char>> labels =     {{'f', 's', 't'}, {'\0', 'a', 'o', 'r'}, {'r', 's', 't', 'p', 'y', 'i', 'y'}, {'\0', 't', 'e', 'p'}};
   std::vector<std::vector<bool>> has_child =  {{ 1 ,  0 ,  1 }, { 0 ,  1 ,  1 ,  1 }, { 0 ,  1 ,  0 ,  0 ,  0 ,  1 ,  0 }, { 0 ,  0 ,  0 ,  0 }};
   std::vector<std::vector<bool>> louds =      {{ 1 ,  0 ,  0 }, { 1 ,  0 ,  1 ,  0 }, { 1 ,  0 ,  0 ,  1 ,  0 ,  1 ,  0 }, { 1 ,  0 ,  1 ,  0 }};
   vector<vector<string>> suffix = {{"plice"}, {""}, {"ther", "", "per", "", "ing"}, {"", "en", "s", "per"}};
@@ -145,7 +146,7 @@ TEST(LoudsSparseTest, ComplexTrie) {
   iss << "trying" << std::endl;
 
   auto n_levels = 4;
-  vector<char> labels =     {'f', 's', 't', '$', 'a', 'o', 'r', 'r', 's', 't', 'p', 'y', 'i', 'y', '$', 't', 'e', 'p'};
+  vector<char> labels =     {'f', 's', 't', '\0', 'a', 'o', 'r', 'r', 's', 't', 'p', 'y', 'i', 'y', '\0', 't', 'e', 'p'};
   vector<bool> has_child =  { 1 ,  0 ,  1 ,  0 ,  1 ,  1 ,  1 ,  0 ,  1 ,  0 ,  0 ,  0 ,  1 ,  0 ,  0 ,  0 ,  0 ,  0 };
   vector<bool> louds =      { 1 ,  0 ,  0 ,  1 ,  0 ,  1 ,  0 ,  1 ,  0 ,  0 ,  1 ,  0 ,  1 ,  0 ,  1 ,  0 ,  1 ,  0 };
   vector<string> suffix =   {"plice", "", "ther", "", "per", "", "ing", "", "en", "s", "per"};
@@ -252,7 +253,7 @@ TEST(LoudsDenseTest, ComplexTrie) {
   iss << "trying" << std::endl;
 
   auto n_levels = 4;
-  vector<std::bitset<256>> labels =     {"fst"_bs, "$a"_bs, "or"_bs, "rst"_bs, "py"_bs, "iy"_bs, "$t"_bs, "ep"_bs};
+  vector<std::bitset<256>> labels =     {"fst"_bs, "\0a"_bs, "or"_bs, "rst"_bs, "py"_bs, "iy"_bs, "\0t"_bs, "ep"_bs};
   vector<std::bitset<256>> has_child =  { "ft"_bs,  "a"_bs, "or"_bs ,  "s"_bs ,  ""_bs , "i"_bs ,  ""_bs ,  ""_bs};
   vector<string> suffix =               {"plice", "", "ther", "", "per", "", "ing", "", "en", "s", "per"};
 
@@ -312,6 +313,7 @@ TEST(SurfTest, PrimitiveTrie) {
   EXPECT_FALSE(surf.look_up("bcad"));
   EXPECT_FALSE(surf.look_up("dcae"));
   
+  // surf.range_query("aaa", "abb");
 }
 
 TEST(SurfTest, ComplexTrie) {
@@ -348,6 +350,8 @@ TEST(SurfTest, ComplexTrie) {
   EXPECT_FALSE(surf.look_up("top"));
   EXPECT_FALSE(surf.look_up("tor"));
   EXPECT_FALSE(surf.look_up("spline"));
+
+  surf.range_query("f", "trying");
   
 }
 
@@ -583,10 +587,32 @@ TEST(LoudsDenseTest, ComplexTrieRange) {
     }
     return ans;
   };
+  auto all_keys_lb = [&dense](auto key){
+    auto begin = dense.lb(key);
+    auto end = dense.end();
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      auto [prefix, suffix] = *it;
+      ans.push_back(prefix+suffix);
+    }
+    return ans;
+  };
+  auto all_keys_ub = [&dense](auto key){
+    auto begin = dense.begin();
+    auto end = dense.ub(key);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      auto [prefix, suffix] = *it;
+      ans.push_back(prefix+suffix);
+    }
+    return ans;
+  };
   auto expected_keys = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
   auto expected_keys_reversed = vector<string>{"trying", "tripper", "tries", "toy", "topper", "splice", "fat", "fasten", "fas", "farther"};
   auto expected_keys_lb = vector<string>{"fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
   auto expected_keys_ub = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper"};
   EXPECT_TRUE(all_keys() == expected_keys);
   EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
+  EXPECT_TRUE(all_keys_lb("fasten") == expected_keys_lb);
+  EXPECT_TRUE(all_keys_ub("toy") == expected_keys_ub);
 }
