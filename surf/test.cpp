@@ -6,7 +6,7 @@
 #include <span>
 
 using namespace std;
-
+using namespace yas;
 // Demonstrate some basic assertions.
 TEST(LoudsBuilderTest, PrimitiveTrie) {
   // using namespace std::string_literals;
@@ -302,7 +302,7 @@ TEST(SurfTest, PrimitiveTrie) {
 
 
   auto builder = LoudsBuilder::from_stream(iss);
-  auto surf = Surf::from_builder(builder, 1);
+  auto surf = Surf::from_builder(builder, 2);
   
   EXPECT_TRUE(surf.look_up("aaa"));
   EXPECT_TRUE(surf.look_up("aba"));
@@ -333,7 +333,7 @@ TEST(SurfTest, ComplexTrie) {
 
 
   auto builder = LoudsBuilder::from_stream(iss);
-  auto surf = Surf::from_builder(builder, 1);
+  auto surf = Surf::from_builder(builder, 2);
   
   EXPECT_TRUE(surf.look_up("f"));
   EXPECT_TRUE(surf.look_up("farther"));
@@ -452,8 +452,6 @@ TEST(LoudsSparseTest, ComplexTrieRange) {
   
   auto builder = LoudsBuilder::from_stream(iss);
   auto sparse = LoudsSparse::from_builder(builder);
-  auto _begin = begin(sparse);
-  auto _end = end(sparse);
 
   auto all_keys = [&sparse](){
     auto begin = sparse.begin();
@@ -501,10 +499,10 @@ TEST(LoudsSparseTest, ComplexTrieRange) {
   auto expected_keys_reversed = vector<string>{"trying", "tripper", "tries", "toy", "topper", "splice", "fat", "fasten", "fas", "farther"};
   auto expected_keys_lb = vector<string>{"fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
   auto expected_keys_ub = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper"};
-  EXPECT_TRUE(all_keys() == expected_keys);
-  EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
-  EXPECT_TRUE(all_keys_lb("fasten") == expected_keys_lb);
-  EXPECT_TRUE(all_keys_ub("toy") == expected_keys_ub);
+  EXPECT_TRUE(all_keys() == expected_keys) << "Not all keys are as expected";
+  EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed) << "Not all reversed keys are as expected";
+  EXPECT_TRUE(all_keys_lb("fasten") == expected_keys_lb) << "Not all keys lb are as expected";
+  EXPECT_TRUE(all_keys_ub("toy") == expected_keys_ub) << "Not all keys ub are as expected";
 }
 
 

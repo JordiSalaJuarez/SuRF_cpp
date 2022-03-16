@@ -9,6 +9,8 @@ cmake_minimum_required (VERSION 3.8)
 project (surf_file)
 add_executable(surf_file surf/surf_file.cpp)
 configure_file(data/input data/input COPYONLY)
+configure_file(data/load_randint data/load_randint COPYONLY)
+configure_file(data/load_randint data/load_randint_slow COPYONLY)
 # Include sub-projects.
 # add_subdirectory ("surf")
 # configure_file("data/test.txt" "surf/data/test.txt" COPYONLY)
@@ -35,4 +37,17 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_discover_tests(surf_test)
+
+add_subdirectory(tlx)
+add_subdirectory(google_benchmark)
+add_subdirectory(surf_paper)
+add_executable(my_benchmark benchmark/benchmark.cpp)
+target_link_libraries(my_benchmark tlx)
+target_link_libraries(my_benchmark benchmark::benchmark)
+
+add_executable(benchmark_utils benchmark/utils.cpp)
+target_link_libraries(benchmark_utils benchmark::benchmark)
+
+
+
 

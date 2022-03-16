@@ -11,7 +11,7 @@
 #include <cassert>
 #include "surf.h"
 using namespace std;
-
+using namespace yas;
 int main()
 {
 
