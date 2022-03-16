@@ -1,0 +1,9 @@
+[submodule "tlx"]
+	path = tlx
+	url = https://github.com/tlx/tlx.git
+[submodule "google_benchmark"]
+	path = google_benchmark
+	url = https://github.com/google/benchmark.git
+[submodule "surf_paper"]
+	path = surf_paper
+	url = https://github.com/efficient/SuRF.git
