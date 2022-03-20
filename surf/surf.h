@@ -167,9 +167,9 @@ namespace yas{
                     auto begin_ = pos_node_first(node, level);
                     auto end_ = begin_ + 256;
                     for (pos = begin_; pos != end_; ++pos){
-                        if (louds->labels[pos/256][pos%256]){
+                        if (louds->labels[pos/256][pos&255]){
                             (*idxs)[level] = pos;
-                            if (louds->has_child[pos/256][pos%256]){
+                            if (louds->has_child[pos/256][pos&255]){
                                 node = louds->rank_c(pos); // get child node
                                 break;
                             } else {
@@ -179,7 +179,7 @@ namespace yas{
                         }    
                     }
                 }
-                has_child = louds->has_child[pos/256][pos%256];
+                has_child = louds->has_child[pos/256][pos&255];
                 level = has_child? level-1:level;
                 idxs->level = level;
                 return *this;
@@ -196,9 +196,9 @@ namespace yas{
                     auto begin_ = pos_node_last(node, level);
                     auto end_ = begin_ - 256;
                     for (pos = begin_; pos != end_; --pos){
-                        if (louds->labels[pos/256][pos%256]){
+                        if (louds->labels[pos/256][pos&255]){
                             (*idxs)[level] = pos;
-                            if (louds->has_child[pos/256][pos%256]){
+                            if (louds->has_child[pos/256][pos&255]){
                                 ++level;
                                 node = louds->rank_c(pos); // get child node
                                 break;
@@ -209,7 +209,7 @@ namespace yas{
                         }    
                     }
                 }
-                has_child = louds->has_child[pos/256][pos%256];
+                has_child = louds->has_child[pos/256][pos&255];
                 level = has_child? level-1:level;
                 idxs->level = level;
                 return *this;
@@ -236,7 +236,7 @@ namespace yas{
                     auto begin = pos+1;
                     auto end = ((pos >> 8) + 1) << 8; //same as: 256*(pos/256 + 1)  but faster (asm: lea)
                     for (auto i = begin; i < end; ++i){
-                        if (louds->labels[i/256][i%256]){
+                        if (louds->labels[i/256][i&255]){
                             return i;
                         }
                     }
@@ -246,24 +246,24 @@ namespace yas{
                     auto begin = level == from_level? 256 * node: 256 * (node + n_roots);
                     auto end = level == from_level? 256 * (node + 1): 256 * (node + n_roots + 1); 
                     for (auto i = begin; i != end; ++i){
-                        if (louds->labels[i/256][i%256]) return i;
+                        if (louds->labels[i/256][i&255]) return i;
                     }
                     return end;
                 };
                 
                 if ((*idxs)[level]+1 == 256*size(louds->labels)) --level; // bounds check
                 (*idxs)[level] = next_pos((*idxs)[level]);
-                while(from_level < level && (*idxs)[level]%256 == 0){ // traversing upwards
+                while(from_level < level && ((*idxs)[level]&255) == 0){ // traversing upwards
                     --level;
                     (*idxs)[level] = next_pos((*idxs)[level]);
                 }
-                while(level + 1 < to_level && louds->has_child[(*idxs)[level]/256][(*idxs)[level]%256]){ // traversing downwards
+                while(level + 1 < to_level && louds->has_child[(*idxs)[level]/256][(*idxs)[level]&255]){ // traversing downwards
                     (*idxs)[level+1] = pos_node_first(louds->rank_c((*idxs)[level]), level + 1);
                     ++level;
                 }
                 pos = (*idxs)[level];
                 // pos is leaf
-                has_child = louds->has_child[pos/256][pos%256];
+                has_child = louds->has_child[pos/256][pos&255];
                 idxs->level = level;
                 return *this;
             }
@@ -273,7 +273,7 @@ namespace yas{
                     auto begin = pos-1;
                     auto end = (pos >> 8) << 8; //same as: 256*(pos/256 + 1)  but faster (asm: lea)
                     for (auto i = begin; i >= end; --i){
-                        if (louds->labels[i/256][i%256]){
+                        if (louds->labels[i/256][i&255]){
                             return i;
                         }
                     }
@@ -283,29 +283,29 @@ namespace yas{
                     auto begin = level == from_level? 256 * (node + 1) - 1: 256 * (node + n_roots + 1)-1;
                     auto end = level == from_level? 256 * node - 1: 256 * (node + n_roots)-1; 
                     for (auto i = begin; i != end; --i){
-                        if (louds->labels[i/256][i%256]) return i;
+                        if (louds->labels[i/256][i&255]) return i;
                     }
                     return end;
                 };
                 (*idxs)[level] = prev_pos((*idxs)[level]);
-                while(from_level < level && (*idxs)[level]%256 == 255){ // traversing upwards
+                while(from_level < level && ((*idxs)[level]&255) == 255){ // traversing upwards
                     --level;
                     (*idxs)[level] = prev_pos((*idxs)[level]);
                 }
-                while(level + 1 < to_level && louds->has_child[(*idxs)[level]/256][(*idxs)[level]%256]){ // traversing downwards
+                while(level + 1 < to_level && louds->has_child[(*idxs)[level]/256][(*idxs)[level]&255]){ // traversing downwards
                     (*idxs)[level+1] = pos_node_last(louds->rank_c((*idxs)[level]), level + 1);
                     ++level;
                 }
                 pos = (*idxs)[level];
                 // pos is leaf
-                has_child = louds->has_child[pos/256][pos%256];
+                has_child = louds->has_child[pos/256][pos&255];
                 idxs->level = level;
                 return *this;
             }
             Iter& lb(string_view key){
                 auto find = [&](auto &container, size_t begin, size_t end){
                     auto i = begin;
-                    while(i != end && !container[i/256][i%256]) ++i;
+                    while(i != end && !container[i/256][i&255]) ++i;
                     return i;
                 };
                 auto pos_node_first = [&](auto node, auto level) {
@@ -335,14 +335,14 @@ namespace yas{
                         pos = pos_node_ge(node, level, 0);
                     }
                     (*idxs)[level] = pos; // set cursor to last pos
-                    if (louds->has_child[pos/256][pos%256] && pos/256 == (level == from_level? node:node+n_roots)){
+                    if (louds->has_child[pos/256][pos&255] && pos/256 == (level == from_level? node:node+n_roots)){
                         node = louds->rank_c(pos); // get child node
                     } else {
                         idxs->level = level;
                         return *this;
                     }
                 }
-                has_child = louds->has_child[pos/256][pos%256];
+                has_child = louds->has_child[pos/256][pos&255];
                 level = has_child? level-1:level;
                 idxs->level = level;
                 return *this;
@@ -351,7 +351,7 @@ namespace yas{
             Iter& ub(string_view key){
                 auto find_reverse = [&](auto &container, size_t begin, size_t end){
                     auto i = begin;
-                    while(i != end && !container[i/256][i%256]) --i;
+                    while(i != end && !container[i/256][i&255]) --i;
                     return i;
                 };
                 auto pos_node_first = [&](auto node, auto level) {
@@ -379,13 +379,13 @@ namespace yas{
                         pos = pos_node_le(node, level, 255);
                     }
                     (*idxs)[level] = pos; // set cursor to last pos
-                    if (louds->has_child[pos/256][pos%256] && pos/256 == (level == from_level? node:node+n_roots)){
+                    if (louds->has_child[pos/256][pos&255] && pos/256 == (level == from_level? node:node+n_roots)){
                         node = louds->rank_c(pos); // get child node
                     } else {
                         break;
                     }
                 }
-                has_child = louds->has_child[pos/256][pos%256];
+                has_child = louds->has_child[pos/256][pos&255];
                 level = has_child? level-1:level;
                 idxs->level = level;
                 return *this;
@@ -848,7 +848,6 @@ namespace yas{
             
             auto sum_size = 0;
             for (const auto &v: builder_labels) sum_size += size(v);
-            
             merge_and_insert(builder_labels, result.labels, sum_size);
             merge_and_insert(builder_has_child, result.has_child, sum_size);
             merge_and_insert(builder_louds, result.louds, sum_size);
