@@ -9,7 +9,7 @@
 
 
 std::vector<std::string> get_input_data(size_t n_keys){
-    std::ifstream file("data/load_randint");
+    std::ifstream file("data/keys_100M");
     std::string key;
     std::vector<std::string> keys;
     while(std::getline(file, key) && 0 < n_keys){
