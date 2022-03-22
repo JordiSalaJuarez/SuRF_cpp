@@ -6,6 +6,7 @@
 #include<optional>
 #include<iostream>
 #include<limits>
+#include "utils/bit_vector.h"
 
 namespace yas{
 
@@ -824,8 +825,11 @@ namespace yas{
         }
 
         vector<char> labels;
-        vector<bool> has_child;
-        vector<bool> louds;
+        // vector<bool> has_child;
+        // vector<bool> louds;
+        BitVector<64> has_child;
+        BitVector<64> louds;
+        
         vector<string> values;
         size_t n_levels{};
         size_t from_level{};
@@ -833,14 +837,9 @@ namespace yas{
         size_t n_trailing_children{};
         size_t max_size_key{};
 
-        static LoudsSparse from_builder(const LoudsBuilder &builder, size_t from_level = 0, size_t to_level = -1, size_t n_trailing_children = 0){
+        static LoudsSparse from_builder(LoudsBuilder &builder, size_t from_level = 0, size_t to_level = -1, size_t n_trailing_children = 0){
             if (to_level == -1) to_level = builder.n_levels;
-            LoudsSparse result{};
-            result.n_levels = to_level - from_level;
-            result.n_trailing_children = n_trailing_children;
-            result.max_size_key = builder.max_size_key;
-            result.from_level = from_level;
-            result.to_level = to_level;
+
             auto builder_labels = span(std::begin(builder.labels)+from_level, std::begin(builder.labels)+to_level);
             auto builder_has_child = span(std::begin(builder.has_child)+from_level, std::begin(builder.has_child)+to_level);
             auto builder_louds = span(std::begin(builder.louds)+from_level, std::begin(builder.louds)+to_level);
@@ -848,42 +847,54 @@ namespace yas{
             
             auto sum_size = 0;
             for (const auto &v: builder_labels) sum_size += size(v);
-            merge_and_insert(builder_labels, result.labels, sum_size);
-            merge_and_insert(builder_has_child, result.has_child, sum_size);
-            merge_and_insert(builder_louds, result.louds, sum_size);
-
             auto sum_size_values = 0;
             for (const auto &v: builder_suffix) sum_size_values += size(v);
-            merge_and_insert(builder_suffix, result.values, sum_size_values);
-            return result;
-        }
 
-        static void merge_and_insert(const auto & vs, auto &r, size_t capacity){
-            r.reserve(capacity);
-            for (const auto &v: vs) r.insert(std::end(r), std::begin(v), std::end(v)); 
+            return LoudsSparse {
+                .labels = merge(builder_labels, sum_size),
+                .has_child = BitVector<64>(builder_has_child, sum_size),
+                .louds = BitVector<64>(builder_louds, sum_size),
+                .values = merge(builder_suffix, sum_size_values),
+                .n_levels = to_level - from_level,
+                .from_level = from_level,
+                .to_level = to_level,
+                .n_trailing_children = n_trailing_children,
+                .max_size_key = builder.max_size_key
+            };
+        }
+        template<class T>
+        static vector<T> merge(span<vector<T>> xs, size_t capacity){
+            vector<T> ans;
+            ans.reserve(capacity);
+            for (const auto &x: xs) ans.insert(std::end(ans), std::begin(x), std::end(x)); 
+            return ans;
         }
 
         size_t rank_c(size_t pos) __attribute__((const)){
-            return std::count(std::begin(has_child), std::begin(has_child)+pos+1, true);
+            // return std::count(std::begin(has_child), std::begin(has_child)+pos+1, true);
+            return has_child.rank(pos);
         }
         size_t rank_l(size_t pos) __attribute__((const)){
-            return std::count(std::begin(louds), std::begin(louds)+pos+1, true);
+            // return std::count(std::begin(louds), std::begin(louds)+pos+1, true);
+            return louds.rank(pos);
         }
 
         size_t select_c(size_t count) __attribute__((const)){
-            for (auto i = 0, curr = 0; i < size(has_child); i++){
-                curr += has_child[i];
-                if (curr >= count) return i;
-            }
-            return size(has_child);
+            // for (auto i = 0, curr = 0; i < size(has_child); i++){
+            //     curr += has_child[i];
+            //     if (curr >= count) return i;
+            // }
+            // return size(has_child);
+            return has_child.select(count);
         }
 
         size_t select_l(size_t count) __attribute__((const)){
-            for (auto i = 0, curr = 0; i < size(louds); i++){
-                curr += louds[i];
-                if (curr >= count) return i;
-            }
-            return size(louds);
+            // for (auto i = 0, curr = 0; i < size(louds); i++){
+            //     curr += louds[i];
+            //     if (curr >= count) return i;
+            // }
+            // return size(louds);
+            return louds.select(count);
         }
 
         size_t find(size_t node, char c){
@@ -956,7 +967,7 @@ namespace yas{
         shared_ptr<LoudsSparse> ls;
         size_t n_dense_levels;
         size_t n_nodes_dense_levels;
-        static Surf from_builder(const LoudsBuilder &builder, size_t n_dense_levels){
+        static Surf from_builder(LoudsBuilder &builder, size_t n_dense_levels){
             auto n_nodes_level = [&](auto level) {
                 return count(begin(builder.louds[level]), end(builder.louds[level]), true);
             };

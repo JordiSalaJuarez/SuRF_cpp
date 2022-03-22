@@ -55,15 +55,19 @@ class BitVector{
         compute_select();
     }
     void compute_rank(){
-        assert(size(lut_rank) > 0);
+        assert(std::size(lut_rank) > 0);
         lut_rank[0] = 0;
-        for (auto i = 1 ; i < size(bit_vector); ++i){
+        for (auto i = 1 ; i < std::size(bit_vector); ++i){
             lut_rank[i] = lut_rank[i-1] + bit_vector[i-1].count();
         }
     }
 
     void compute_select(){
-        assert(size(lut_rank) > 0);
+        assert(std::size(lut_rank) > 0);
+        auto n_set_bits = rank(n_bits - 1);
+        lut_select.resize(n_set_bits/N + (n_set_bits&(N-1)?1:0));
+        lut_select.shrink_to_fit();
+        if (std::size(lut_select) == 0) return;
         auto bs_before = 0, bs_after = 0; // bits set before and after
         auto j = 1; 
         auto i = 0;
@@ -71,13 +75,14 @@ class BitVector{
         lut_select[0] = i*N + nthset(bit_vector[i].to_ullong(), 0);
         bs_before = bit_vector[i++].count()-1;
         bs_after = bs_before;
-        for (; i < size(bit_vector); ++i){
+        for (; i < std::size(bit_vector); ++i){
             bs_after += bit_vector[i].count();
             if (bs_before/N  != bs_after/N){
                 lut_select[bs_after/N] = i*N + nthset(bit_vector[i].to_ullong(), (bs_after & ~(N-1)) - bs_before - 1);
             };
             bs_before = bs_after;
         }
+        
     }
 
     size_t rank(size_t pos){
@@ -86,8 +91,9 @@ class BitVector{
     }
 
     size_t select(size_t pos){
-        assert(pos <= rank(n_bits-1));
+        // assert(pos <= rank(n_bits-1));
         --pos;
+        if (pos / N >= std::size(lut_select)) return n_bits;
         auto i = pos / N;
         auto rem = pos & (N-1);
         auto bit_pos = lut_select[i];
@@ -98,19 +104,28 @@ class BitVector{
         }else{
             rem -= count;
         }
-        for (auto i = bit_pos / N + 1; i < size(bit_vector); ++i){
+        for (auto i = bit_pos / N + 1; i < std::size(bit_vector); ++i){
             auto count = bit_vector[i].count();
             if (count >= rem){
-                if (rem == 0) return bit_pos;
+                if (rem == 0) return i*N;
                 else return i*N + nthset(bit_vector[i].to_ullong(), rem-1);
             }else{
                 rem -= count;
             }
         }
-        assert(false); // Failed to find position
+        return n_bits;
+        // assert(false); // Failed to find position
     }
 
-    inline bool operator[] (size_t i) const {
+    const size_t size() const {
+        return n_bits;
+    }
+
+    size_t size() {
+        return n_bits;
+    }
+
+    inline bool operator[] (size_t i) const noexcept {
         return bit_vector[i/N][i&(N-1)];
     }
 

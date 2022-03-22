@@ -48,12 +48,12 @@ gtest_discover_tests(surf_test)
 gtest_discover_tests(test_bit_vector)
 
 
-# add_subdirectory(tlx)
+add_subdirectory(tlx)
 add_subdirectory(google_benchmark)
-# add_subdirectory(surf_paper)
-# add_executable(my_benchmark benchmark/benchmark.cpp)
-# target_link_libraries(my_benchmark tlx)
-# target_link_libraries(my_benchmark benchmark::benchmark)
+add_subdirectory(surf_paper)
+add_executable(my_benchmark benchmark/benchmark.cpp)
+target_link_libraries(my_benchmark tlx)
+target_link_libraries(my_benchmark benchmark::benchmark)
 
 add_executable(benchmark_utils benchmark/utils.cpp)
 target_link_libraries(benchmark_utils benchmark::benchmark)

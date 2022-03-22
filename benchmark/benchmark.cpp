@@ -69,7 +69,7 @@ static void BM_PointQuerySurf(benchmark::State& state) {
     auto keys = get_input_data(state.range());
     tlx::btree_set<std::string> tree;
     auto builder = yas::LoudsBuilder::from_vector(keys);
-    auto surf = yas::Surf::from_builder(builder, 1);
+    auto surf = yas::Surf::from_builder(builder, 4);
     for (auto _ : state){
         benchmark::DoNotOptimize(surf.look_up(keys[rand()%size(keys)]));
     }
@@ -147,17 +147,17 @@ const static auto N = 1000000;
 // BENCHMARK(BM_ConstructionSurf)->Arg(N);
 // BENCHMARK(BM_ConstructionSurfPaper)->Arg(N);
 
-// BENCHMARK(BM_PointQueryBTree)->Arg(N);
-// BENCHMARK(BM_PointQuerySurf)->Arg(N);
-// BENCHMARK(BM_PointQuerySurfPaper)->Arg(N);
+BENCHMARK(BM_PointQueryBTree)->Arg(N);
+BENCHMARK(BM_PointQuerySurf)->Arg(N);
+BENCHMARK(BM_PointQuerySurfPaper)->Arg(N);
 // BENCHMARK(BM_PointQueryLoudsSparsePaper)->Arg(N);
 // BENCHMARK(BM_PointQueryLoudsSparse)->Arg(N);
 // BENCHMARK(BM_AccessBitLoudsSparsePaper)->Arg(N);
 // BENCHMARK(BM_AccessBitLoudsSparse)->Arg(N);
-BENCHMARK(BM_TraversalSurfPaper)
-    ->Arg(1000)
-    ->Arg(10000)
-    ->Arg(100000)
-    ->Arg(1000000);
+// BENCHMARK(BM_TraversalSurfPaper)
+//     ->Arg(1000)
+//     ->Arg(10000)
+//     ->Arg(100000)
+//     ->Arg(1000000);
 
 BENCHMARK_MAIN();

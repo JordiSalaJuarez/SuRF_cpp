@@ -393,46 +393,46 @@ TEST(SurfTest, ComplexTrie) {
 //   }
 // }
 
-// TEST(LoudsSparseTest, PrimitiveTrieRange) {
-//   // using namespace std::string_literals;
-//   std::stringstream iss;
-//   iss << "aaa" << std::endl;
-//   iss << "aba" << std::endl;
-//   iss << "abb" << std::endl;
-//   iss << "aca" << std::endl;
+TEST(LoudsSparseTest, PrimitiveTrieRange) {
+  // using namespace std::string_literals;
+  std::stringstream iss;
+  iss << "aaa" << std::endl;
+  iss << "aba" << std::endl;
+  iss << "abb" << std::endl;
+  iss << "aca" << std::endl;
 
   
-//   auto builder = LoudsBuilder::from_stream(iss);
-//   auto sparse = LoudsSparse::from_builder(builder);
-//   auto _begin = begin(sparse);
-//   auto _end = end(sparse);
+  auto builder = LoudsBuilder::from_stream(iss);
+  auto sparse = LoudsSparse::from_builder(builder);
+  auto _begin = begin(sparse);
+  auto _end = end(sparse);
 
-//   auto all_keys = [&sparse](){
-//     auto begin = sparse.begin();
-//     auto end = sparse.end();
-//     vector<string> ans{};
-//     for (auto it = begin; it != end; ++it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
+  auto all_keys = [&sparse](){
+    auto begin = sparse.begin();
+    auto end = sparse.end();
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      auto [prefix, suffix] = *it;
+      ans.push_back(prefix+suffix);
+    }
+    return ans;
+  };
 
-//   auto all_keys_reversed = [&sparse](){
-//     auto begin = sparse.begin();
-//     auto end = sparse.end();
-//     vector<string> ans{};
-//     for (auto it = end; it != begin; --it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-//   auto expected_keys = vector<string>{"aaa", "aba", "abb"};
-//   auto expected_keys_reversed = vector<string>{"aca", "abb", "aba"};
-//   EXPECT_TRUE(all_keys() == expected_keys);
-//   EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
-// }
+  auto all_keys_reversed = [&sparse](){
+    auto begin = sparse.begin();
+    auto end = sparse.end();
+    vector<string> ans{};
+    for (auto it = end; it != begin; --it){
+      auto [prefix, suffix] = *it;
+      ans.push_back(prefix+suffix);
+    }
+    return ans;
+  };
+  auto expected_keys = vector<string>{"aaa", "aba", "abb"};
+  auto expected_keys_reversed = vector<string>{"aca", "abb", "aba"};
+  EXPECT_TRUE(all_keys() == expected_keys);
+  EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
+}
 
 TEST(LoudsSparseTest, ComplexTrieRange) {
   // using namespace std::string_literals;

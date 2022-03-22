@@ -57,15 +57,16 @@ void bit_vector_complex_test(){
         EXPECT_EQ(bit_vector.rank(i), res);
     }
     auto n = bit_vector.rank(size(vector)-1);
-    std::vector<size_t> select(n + 1, 0);
+    std::vector<size_t> select(n + 2, 0);
 
     for (auto i = 0, j = 1; i < size(vector); ++i){
         if (vector[i]){
             select[j++] = i;
         }
     }
+    select[n + 1] = size(bits);
     // Test select
-    for(auto i = 1 ; i < n + 1; ++i){
+    for(auto i = 1 ; i < size(select); ++i){
         EXPECT_EQ(bit_vector.select(i), select[i]);
     }
 }
@@ -73,7 +74,7 @@ void bit_vector_complex_test(){
 // Primitive tests (for debugging)
 TEST(BitVectorTest, Primitive_2) { bit_vector_primitive_test<2>(); }
 TEST(BitVectorTest, Primitive_4) { bit_vector_primitive_test<4>(); }
-// Complex tests
+// // Complex tests
 TEST(BitVectorTest, Complex_2) {   bit_vector_complex_test<2>();  }
 TEST(BitVectorTest, Complex_4) {   bit_vector_complex_test<4>();  }
 TEST(BitVectorTest, Complex_8) {   bit_vector_complex_test<8>();  }
