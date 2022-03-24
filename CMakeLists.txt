@@ -1,8 +1,15 @@
 cmake_minimum_required(VERSION 3.14)
-
+project(surf_cpp)
 # GoogleTest requires at least C++11
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=haswell")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=haswell -ldl")
+option(COZ_PROFILING, "Coz profiling" ON)
+
+if (COZ_PROFILING)
+  find_package(coz-profiler REQUIRED)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE -DCOZ_PROFILING=1)
+  target_include_directories(${PROJECT_NAME} PUBLIC ${COZ_INCLUDE_DIRS})
+endif(COZ_PROFILING)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -31,16 +38,14 @@ target_link_libraries(
   surf_test
   gtest_main
 )
+target_link_libraries(surf_test ${OPENSSL_LIBRARIES} dl)
 
 add_executable(
   test_bit_vector
   "surf/test/test_bit_vector.cpp"
 )
 
-target_link_libraries(
-  test_bit_vector
-  gtest_main
-)
+target_link_libraries(test_bit_vector gtest_main)
 
 
 include(GoogleTest)
@@ -54,7 +59,11 @@ add_subdirectory(surf_paper)
 add_executable(my_benchmark benchmark/benchmark.cpp)
 target_link_libraries(my_benchmark tlx)
 target_link_libraries(my_benchmark benchmark::benchmark)
+target_link_libraries(my_benchmark ${OPENSSL_LIBRARIES} dl)
 
 add_executable(benchmark_utils benchmark/utils.cpp)
 target_link_libraries(benchmark_utils benchmark::benchmark)
+target_link_libraries(my_benchmark ${OPENSSL_LIBRARIES} dl)
+
+
 

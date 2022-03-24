@@ -119,14 +119,14 @@ TEST(LoudsSparseTest, PrimitiveTrie) {
   for (auto j=0; j < size(sparse.values); j++)
     EXPECT_EQ(sparse.values[j], suffix[j]) << "different values found at level position " << j; 
   
-  EXPECT_TRUE(sparse.look_up("aaa").found);
-  EXPECT_TRUE(sparse.look_up("aba").found);
-  EXPECT_TRUE(sparse.look_up("abb").found);
-  EXPECT_TRUE(sparse.look_up("aca").found);
-  EXPECT_FALSE(sparse.look_up("acb").found);
-  EXPECT_FALSE(sparse.look_up("bca").found);
-  EXPECT_FALSE(sparse.look_up("bcad").found);
-  EXPECT_FALSE(sparse.look_up("dcae").found);
+  EXPECT_TRUE(sparse.look_up("aaa"));
+  EXPECT_TRUE(sparse.look_up("aba"));
+  EXPECT_TRUE(sparse.look_up("abb"));
+  EXPECT_TRUE(sparse.look_up("aca"));
+  EXPECT_FALSE(sparse.look_up("acb"));
+  EXPECT_FALSE(sparse.look_up("bca"));
+  EXPECT_FALSE(sparse.look_up("bcad"));
+  EXPECT_FALSE(sparse.look_up("dcae"));
   
 }
 
@@ -171,22 +171,22 @@ TEST(LoudsSparseTest, ComplexTrie) {
     EXPECT_EQ(sparse.values[j], suffix[j]) << "different values found at level position " << j; 
   
 
-  EXPECT_TRUE(sparse.look_up("f").found);
-  EXPECT_TRUE(sparse.look_up("farther").found);
-  EXPECT_TRUE(sparse.look_up("fas").found);
-  EXPECT_TRUE(sparse.look_up("fasten").found);
-  EXPECT_TRUE(sparse.look_up("fat").found);
-  EXPECT_TRUE(sparse.look_up("splice").found);
-  EXPECT_TRUE(sparse.look_up("topper").found);
-  EXPECT_TRUE(sparse.look_up("toy").found);
-  EXPECT_TRUE(sparse.look_up("tries").found);
-  EXPECT_TRUE(sparse.look_up("tripper").found);
-  EXPECT_TRUE(sparse.look_up("trying").found);
-  EXPECT_FALSE(sparse.look_up("try").found);
-  EXPECT_FALSE(sparse.look_up("top").found);
-  EXPECT_FALSE(sparse.look_up("tor").found);
-  EXPECT_FALSE(sparse.look_up("spline").found);
-  EXPECT_FALSE(sparse.look_up("toys").found);
+  EXPECT_TRUE(sparse.look_up("f"));
+  EXPECT_TRUE(sparse.look_up("farther"));
+  EXPECT_TRUE(sparse.look_up("fas"));
+  EXPECT_TRUE(sparse.look_up("fasten"));
+  EXPECT_TRUE(sparse.look_up("fat"));
+  EXPECT_TRUE(sparse.look_up("splice"));
+  EXPECT_TRUE(sparse.look_up("topper"));
+  EXPECT_TRUE(sparse.look_up("toy"));
+  EXPECT_TRUE(sparse.look_up("tries"));
+  EXPECT_TRUE(sparse.look_up("tripper"));
+  EXPECT_TRUE(sparse.look_up("trying"));
+  EXPECT_FALSE(sparse.look_up("try"));
+  EXPECT_FALSE(sparse.look_up("top"));
+  EXPECT_FALSE(sparse.look_up("tor"));
+  EXPECT_FALSE(sparse.look_up("spline"));
+  EXPECT_FALSE(sparse.look_up("toys"));
 }
 
 

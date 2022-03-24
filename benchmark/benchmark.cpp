@@ -8,21 +8,28 @@
 #include <algorithm>
 
 
-std::vector<std::string> get_input_data(size_t n_keys){
-    std::ifstream file("data/keys_100M");
-    std::string key;
-    std::vector<std::string> keys;
-    while(std::getline(file, key) && 0 < n_keys){
-        keys.push_back(key);
-        --n_keys;
-    }
+std::vector<std::string> get_input_data(auto n_keys){
+    static auto keys = [] (size_t n_keys) {
+        std::ifstream file("data/keys_100M");
+        std::string key;
+        std::vector<std::string> keys;
+        while(std::getline(file, key) && 0 < n_keys){
+            keys.push_back(key);
+            --n_keys;
+        }
+        file.close();
+        return keys;
+    }(n_keys);
     // std::random_device rd;
     // std::mt19937 g(rd());
     // std::shuffle(begin(keys), end(keys), g);
     // keys.resize(n_keys);
-    std::sort(begin(keys), end(keys));
-    return std::move(keys);
+    // std::sort(begin(keys), end(keys));
+    return keys;
 }
+
+
+
 
 
 static void BM_ConstructionBTree(benchmark::State& state) {
@@ -147,11 +154,11 @@ const static auto N = 1000000;
 // BENCHMARK(BM_ConstructionSurf)->Arg(N);
 // BENCHMARK(BM_ConstructionSurfPaper)->Arg(N);
 
-BENCHMARK(BM_PointQueryBTree)->Arg(N);
-BENCHMARK(BM_PointQuerySurf)->Arg(N);
-BENCHMARK(BM_PointQuerySurfPaper)->Arg(N);
-// BENCHMARK(BM_PointQueryLoudsSparsePaper)->Arg(N);
-// BENCHMARK(BM_PointQueryLoudsSparse)->Arg(N);
+// BENCHMARK(BM_PointQueryBTree)->Arg(N);
+// BENCHMARK(BM_PointQuerySurf)->Arg(N);
+// BENCHMARK(BM_PointQuerySurfPaper)->Arg(N);
+BENCHMARK(BM_PointQueryLoudsSparsePaper)->Arg(N);
+BENCHMARK(BM_PointQueryLoudsSparse)->Arg(N);
 // BENCHMARK(BM_AccessBitLoudsSparsePaper)->Arg(N);
 // BENCHMARK(BM_AccessBitLoudsSparse)->Arg(N);
 // BENCHMARK(BM_TraversalSurfPaper)

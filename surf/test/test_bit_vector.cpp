@@ -3,14 +3,15 @@
 #include <algorithm>
 
 
-template<size_t N>
+template<size_t N, size_t M>
 void bit_vector_primitive_test(){
-    std::string bits("10101011110");
+    std::string bits("10101011110"); // 6
+    // 0b 10 10  10 11  11 0
     std::vector<bool> vector;
     vector.reserve(bits.size());
     for(const auto& a : bits)
         vector.push_back(a == '1');
-    BitVector<N> bit_vector(vector, size(bits));
+    BitVector<N, M> bit_vector(vector, size(bits));
     
     // Test operator[]
     for(auto i = 0; i < size(bits); ++i){
@@ -34,9 +35,13 @@ void bit_vector_primitive_test(){
     for(auto i = 1 ; i < n + 1; ++i){
         EXPECT_EQ(bit_vector.select(i), select[i]);
     }
+    // test next
+    for (auto i = 1 ; i < n; ++i){
+        EXPECT_EQ(bit_vector.next(bit_vector.select(i)), select[i+1]);
+    }
 }
 
-template<size_t N>
+template<size_t N,  size_t M>
 void bit_vector_complex_test(){
     // yes, this is a long string
     std::string bits("0111000101010011001101100101110000101000011010101011000001001110100000011110100111110000000010001101101101011010111001000101110001111001010010010000110101110000111100101011110011101000110101011100110111000111111001011111001101111100110111000110001111101010");
@@ -44,7 +49,7 @@ void bit_vector_complex_test(){
     vector.reserve(bits.size());
     for(const auto& a : bits)
         vector.push_back(a == '1');
-    BitVector<N> bit_vector(vector, size(bits));
+    BitVector<N, M> bit_vector(vector, size(bits));
     
     // Test operator[]
     for(auto i = 0; i < size(bits); ++i){
@@ -72,12 +77,12 @@ void bit_vector_complex_test(){
 }
 
 // Primitive tests (for debugging)
-TEST(BitVectorTest, Primitive_2) { bit_vector_primitive_test<2>(); }
-TEST(BitVectorTest, Primitive_4) { bit_vector_primitive_test<4>(); }
+TEST(BitVectorTest, Primitive_2) { bit_vector_primitive_test<2, 4>(); }
+TEST(BitVectorTest, Primitive_4) { bit_vector_primitive_test<4, 8>(); }
 // // Complex tests
-TEST(BitVectorTest, Complex_2) {   bit_vector_complex_test<2>();  }
-TEST(BitVectorTest, Complex_4) {   bit_vector_complex_test<4>();  }
-TEST(BitVectorTest, Complex_8) {   bit_vector_complex_test<8>();  }
-TEST(BitVectorTest, Complex_16) {  bit_vector_complex_test<16>(); }
-TEST(BitVectorTest, Complex_32) {  bit_vector_complex_test<32>(); }
-TEST(BitVectorTest, Complex_64) {  bit_vector_complex_test<64>(); }
+TEST(BitVectorTest, Complex_2) {   bit_vector_complex_test<2, 4>();  }
+TEST(BitVectorTest, Complex_4) {   bit_vector_complex_test<4, 8>();  }
+TEST(BitVectorTest, Complex_8) {   bit_vector_complex_test<8, 16>();  }
+TEST(BitVectorTest, Complex_16) {  bit_vector_complex_test<16, 32>(); }
+TEST(BitVectorTest, Complex_32) {  bit_vector_complex_test<32, 64>(); }
+TEST(BitVectorTest, Complex_64) {  bit_vector_complex_test<64, 256>(); }

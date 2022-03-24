@@ -7,7 +7,6 @@
 #include<iostream>
 #include<limits>
 #include "utils/bit_vector.h"
-
 namespace yas{
 
     using namespace std;
@@ -21,6 +20,7 @@ namespace yas{
         vector<vector<bool>> louds{};
         vector<vector<bool>> is_prefix{};
         vector<vector<string>> suffix{};
+        vector<vector<size_t>> value{};
         size_t n_levels{};
         size_t max_size_key{};
 
@@ -871,29 +871,17 @@ namespace yas{
         }
 
         size_t rank_c(size_t pos) __attribute__((const)){
-            // return std::count(std::begin(has_child), std::begin(has_child)+pos+1, true);
             return has_child.rank(pos);
         }
         size_t rank_l(size_t pos) __attribute__((const)){
-            // return std::count(std::begin(louds), std::begin(louds)+pos+1, true);
             return louds.rank(pos);
         }
 
         size_t select_c(size_t count) __attribute__((const)){
-            // for (auto i = 0, curr = 0; i < size(has_child); i++){
-            //     curr += has_child[i];
-            //     if (curr >= count) return i;
-            // }
-            // return size(has_child);
             return has_child.select(count);
         }
 
         size_t select_l(size_t count) __attribute__((const)){
-            // for (auto i = 0, curr = 0; i < size(louds); i++){
-            //     curr += louds[i];
-            //     if (curr >= count) return i;
-            // }
-            // return size(louds);
             return louds.select(count);
         }
 
@@ -929,35 +917,23 @@ namespace yas{
             return pos - rank_c(pos);
         }
 
-        auto look_up(const std::string& word, size_t node = 0, size_t from_level = 0) {
-            struct Query{ bool found; size_t node;}; 
-            auto to_level = from_level+n_levels;
+        bool look_up(const std::string& word, size_t node = 0, size_t from_level = 0) {
+            auto to_level = std::min(from_level+n_levels, size(word));
             auto pos_begin = select_l(node+1);
-            auto pos_end = select_l(node+2);
+            auto pos_end = louds.next(pos_begin);
             for (auto level = from_level; level < to_level; level++){
-                if (level == size(word)){
-                    return Query {
-                        .found = find(pos_begin, pos_end, '\0') != -1,
-                        .node = failed_query
-                    };
-                }
                 auto pos = find(pos_begin, pos_end, word[level]);
-                if (pos == -1) return Query { .found = false, .node = failed_query }; // failed to find char
+                if (pos == -1) return false; // failed to find char
                 else if (!has_child[pos]){
                     auto suffix = values[value(pos)];
-                    return Query {
-                        .found = strcmp(word.c_str() + level+1, suffix.c_str()) == 0,
-                        .node = failed_query
-                    }; // chech if the suffix is the same
+                    return strcmp(word.c_str() + level+1, suffix.c_str()) == 0;// chech if the suffix is the same
+                }else{
+                    auto node = rank_c(pos); // get child node
+                    pos_begin = select_l(node+1 + n_trailing_children); // get start pos node
+                    pos_end = louds.next(pos_begin); // get end pos node
                 }
-                auto node = rank_c(pos); // get child node
-                pos_begin = select_l(node+1 + n_trailing_children); // get start pos node
-                pos_end = select_l(node+2 + n_trailing_children); // get end pos node
             }
-            return Query {
-                .found = false,
-                .node = node - rank_l(size(louds)-1) + 1
-            };
+            return find(pos_begin, pos_end, '\0') != -1;
         }
     };
 
@@ -984,7 +960,7 @@ namespace yas{
             auto [found_d, node_s] = ld->look_up(word);
             if (found_d) return true;
             if (node_s == failed_query) return false;
-            auto [found_l, pos_l] = ls->look_up(word, node_s, n_dense_levels);
+            auto found_l = ls->look_up(word, node_s, n_dense_levels);
             return found_l;
         }
 
