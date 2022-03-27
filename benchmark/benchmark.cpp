@@ -6,7 +6,7 @@
 #include <benchmark/benchmark.h>
 #include <random>
 #include <algorithm>
-
+#include <gperftools/profiler.h>
 
 std::vector<std::string> get_input_data(auto n_keys){
     static auto keys = [] (size_t n_keys) {
@@ -110,7 +110,6 @@ static void BM_PointQueryLoudsSparse(benchmark::State& state) {
 
 static void BM_PointQueryLoudsDensePaper(benchmark::State& state) {
     auto keys = get_input_data(state.range());
-    tlx::btree_set<std::string> tree;
     surf::SuRFBuilder builder(true, 0, surf::SuffixType::kNone, 0, 0);
     builder.build(keys);
     auto louds_dense = surf::LoudsDense(&builder);
@@ -129,11 +128,66 @@ static void BM_PointQueryLoudsDense(benchmark::State& state) {
     auto louds_dense = yas::LoudsDense::from_builder(builder);
     for (auto _ : state){
         auto key = keys[rand()%size(keys)];
+        ProfilerStart("look_up.prof");
         auto found = louds_dense.look_up(key, 0);
+        ProfilerStop();
         benchmark::DoNotOptimize(found);
         benchmark::DoNotOptimize(louds_dense);
     }
 }
+
+static void BM_AccessBitLoudsDensePaper(benchmark::State& state) {
+    auto keys = get_input_data(state.range());
+    surf::SuRFBuilder builder(true, 0, surf::SuffixType::kNone, 0, 0);
+    builder.build(keys);
+    auto louds_dense = surf::LoudsDense(&builder);
+    for (auto _ : state){
+        surf::position_t pos = rand()%100000;
+        auto found = louds_dense.child_indicator_bitmaps_->readBit(pos);
+        benchmark::DoNotOptimize(found);
+        benchmark::DoNotOptimize(louds_dense);
+    }
+}
+
+static void BM_AccessBitLoudsDense(benchmark::State& state) {
+    auto keys = get_input_data(state.range());
+    auto builder = yas::LoudsBuilder::from_vector(keys);
+    auto louds_dense = yas::LoudsDense::from_builder(builder);
+    for (auto _ : state){
+        std::size_t pos = rand()%100000;
+        auto found = louds_dense.has_child[pos / 255][pos & (255-1)];
+        benchmark::DoNotOptimize(found);
+        benchmark::DoNotOptimize(louds_dense);
+    }
+}
+
+
+static void BM_RankLoudsDensePaper(benchmark::State& state) {
+    auto keys = get_input_data(state.range());
+    surf::SuRFBuilder builder(true, 0, surf::SuffixType::kNone, 0, 0);
+    builder.build(keys);
+    auto louds_dense = surf::LoudsDense(&builder);
+    for (auto _ : state){
+        surf::position_t pos = rand()%10000000;
+        auto found = louds_dense.child_indicator_bitmaps_->rank(pos);
+        benchmark::DoNotOptimize(found);
+        benchmark::DoNotOptimize(louds_dense);
+    }
+}
+
+static void BM_RankLoudsDense(benchmark::State& state) {
+    auto keys = get_input_data(state.range());
+    auto builder = yas::LoudsBuilder::from_vector(keys);
+    auto louds_dense = yas::LoudsDense::from_builder(builder);
+    for (auto _ : state){
+        std::size_t pos = rand()%10000000;
+        auto found = louds_dense.rank_c(pos);
+        benchmark::DoNotOptimize(found);
+        benchmark::DoNotOptimize(louds_dense);
+    }
+}
+
+
 
 
 
@@ -186,8 +240,14 @@ const static auto N = 1000000;
 // BENCHMARK(BM_PointQueryLoudsSparsePaper)->Arg(N);
 // BENCHMARK(BM_PointQueryLoudsSparse)->Arg(N);
 
-BENCHMARK(BM_PointQueryLoudsDensePaper)->Arg(N);
+// BENCHMARK(BM_PointQueryLoudsDensePaper)->Arg(N);
 BENCHMARK(BM_PointQueryLoudsDense)->Arg(N);
+
+// BENCHMARK(BM_AccessBitLoudsDensePaper)->Arg(N);
+// BENCHMARK(BM_AccessBitLoudsDense)->Arg(N);
+
+// BENCHMARK(BM_RankLoudsDensePaper)->Arg(N);
+// BENCHMARK(BM_RankLoudsDense)->Arg(N);
 
 // BENCHMARK(BM_AccessBitLoudsSparsePaper)->Arg(N);
 // BENCHMARK(BM_AccessBitLoudsSparse)->Arg(N);
