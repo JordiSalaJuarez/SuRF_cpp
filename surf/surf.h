@@ -7,6 +7,8 @@
 #include<iostream>
 #include<limits>
 #include "utils/bit_vector.h"
+#include <cstdint>
+
 namespace yas{
 
     using namespace std;
@@ -103,21 +105,22 @@ namespace yas{
 
             return ans;
         }
+
         static LoudsBuilder from_vector(const vector<string> &input){
             LoudsBuilder ans{};
             string key{}, next_key{};
-            if (size(input) == 0) return std::move(ans);
             for(const auto &next_key: input){
                 auto lca_prev = ans.lowest_common_ancestor_prev(key);
                 auto lca_next = ans.lowest_common_ancestor_next(key, next_key);
                 ans.insert_key(key, lca_prev, max(lca_prev, lca_next));
                 key = next_key; // is this going to be a copy? move?
             }
-            auto lca_prev = ans.lowest_common_ancestor_prev(key);
-            ans.insert_key(key, lca_prev, lca_prev);
-            ans.louds[0][0] = true;
-
-            return std::move(ans);
+            if( size(input) > 0){
+                auto lca_prev = ans.lowest_common_ancestor_prev(key);
+                ans.insert_key(key, lca_prev, lca_prev);
+                ans.louds[0][0] = true;
+            }
+            return ans;
         }
     };
 
@@ -153,7 +156,7 @@ namespace yas{
                 node{node},
                 pos{0},
                 has_child{false},
-                level{from_level}, 
+                level{(int) from_level}, 
                 idxs{positions}, 
                 louds{louds}{}
 
@@ -432,6 +435,7 @@ namespace yas{
 
         vector<std::bitset<256>> labels{};
         vector<std::bitset<256>> has_child{};
+        vector<std::size_t> lut_has_child{};
         vector<bool> is_prefix_key{};
         vector<string> values{};
         size_t n_levels{};
@@ -483,21 +487,24 @@ namespace yas{
                     result.has_child.back().set(c, builder.has_child[level][i]);
                 }
             }
+            result.lut_has_child.resize(std::size(result.has_child));
+            compute_rank(result.has_child, result.lut_has_child);
             return result;
+        }
+        static void compute_rank(auto &has_child, auto &lut_has_child){
+            auto sum = 0;
+            auto n_blocks = std::size(has_child);
+            for (auto i = 0 ; i < n_blocks; ++i){
+                lut_has_child[i] = sum;
+                sum += has_child[i].count();
+            }
         }  
 
         size_t rank_c(size_t pos) __attribute__((const)) {
-            auto n = (pos + 1) / 256; 
-            auto m = (pos + 1) % 256;
-            auto count = 0;
-            auto i = 0;
-            for (; i < n; i++)
-                count += has_child[i].count();
-            for(auto j = 0; j < m; j++)
-                count += has_child[n][j];
-            return count;
+            assert(pos < std::size(has_child) * 256);
+            return lut_has_child[pos / 256] + (has_child[pos / 256] << ((256-1) - (pos & (256-1)))).count();
         }
-
+        
         size_t rank_l(size_t pos) __attribute__((const)) {
             auto n = (pos + 1) / 256; 
             auto m = (pos + 1) % 256;
@@ -541,19 +548,16 @@ namespace yas{
 
 
 
-        auto look_up(const std::string& word, size_t pos = -1, size_t from_level = 0) { 
+        auto look_up(const std::string& word, size_t from_level = 0) { 
             struct Query{ bool found; size_t node;};
-            auto to_level = from_level + n_levels;
+            auto to_level = std::min(from_level+n_levels, size(word));
+            auto node = 0;
+            auto pos = 0;
             for (auto level = 0; level < to_level; level++){
-                if (level == size(word)){
-                    return Query{
-                        .found = labels[child(pos)/256]['\0'],
-                        .node = failed_query
-                    };
-                }
-                pos = child(pos) + word[level];
-                if (labels[pos/256][word[level]]) {
-                    if (!has_child[pos/256][word[level]]){
+                unsigned char token = word[level];
+                pos = 256*node + token;
+                if (labels[node][token]) {
+                    if (!has_child[node][token]){
                         auto suffix = values[value(pos)];
                         return Query {
                             .found = strcmp(word.c_str() + level+1, suffix.c_str()) == 0,
@@ -562,9 +566,10 @@ namespace yas{
                     }
                 } else
                     return Query{.found = false, .node = failed_query};
+                node = rank_c(pos);
             }
             return Query{
-                .found = false,
+                .found = labels[node]['\0'],
                 .node = (child(pos) - 256*size(labels))/256
             };
         }
@@ -590,7 +595,7 @@ namespace yas{
                 n_roots{louds->n_trailing_children},
                 node{node},
                 pos{0},
-                level{from_level}, 
+                level{(int) from_level}, 
                 idxs{positions}, 
                 louds{louds}{}
 
@@ -852,8 +857,8 @@ namespace yas{
 
             return LoudsSparse {
                 .labels = merge(builder_labels, sum_size),
-                .has_child = BitVector<64>(builder_has_child, sum_size),
-                .louds = BitVector<64>(builder_louds, sum_size),
+                .has_child = BitVector<64UL, 512UL>(builder_has_child, sum_size),
+                .louds = BitVector<64UL, 512UL>(builder_louds, sum_size),
                 .values = merge(builder_suffix, sum_size_values),
                 .n_levels = to_level - from_level,
                 .from_level = from_level,
@@ -890,12 +895,32 @@ namespace yas{
                 if (labels[i] == c) return i;
             return -1;
         }
-
         size_t find(size_t begin, size_t end, char c){
-            for (auto i = begin; i < end; i++)
+            for (auto i = begin; i < end; ++i){
                 if (labels[i] == c) return i;
-            return -1;
+            }
+            return end;
         }
+
+        // std::size_t find(std::size_t begin, std::size_t end, char c){
+        //     std::size_t ans = 0UL;
+        //     for (char *i = &labels[begin]; i < &labels[end]; ++i){
+        //         ans += (std::size_t)((*i == c)? i: 0UL);
+        //     }
+        //     return ans? (ans-(std::size_t)labels.data()) : end;
+        // }
+        // size_t find_ptr(char* begin, char* end, char c){
+        //     auto ans = 0;
+        //     for (auto i = begin; i < end; ++i){
+        //         ans += (*i == c)? i: 0;
+        //     }
+        //     return ans;
+        // }
+        // size_t find(char* begin, char* end, char c){
+        //     for (char* i = begin; i < end; ++i)
+        //         if (*i == c) return (size_t)(i - begin);
+        //     return (size_t)(end-begin);
+        // }
 
         size_t child_begin(size_t pos){
             return select_l(rank_c(pos) + 1 + n_trailing_children);
@@ -917,13 +942,15 @@ namespace yas{
             return pos - rank_c(pos);
         }
 
+
+
         bool look_up(const std::string& word, size_t node = 0, size_t from_level = 0) {
             auto to_level = std::min(from_level+n_levels, size(word));
             auto pos_begin = select_l(node+1);
             auto pos_end = louds.next(pos_begin);
             for (auto level = from_level; level < to_level; level++){
                 auto pos = find(pos_begin, pos_end, word[level]);
-                if (pos == -1) return false; // failed to find char
+                if (pos == pos_end) return false; // failed to find char
                 else if (!has_child[pos]){
                     auto suffix = values[value(pos)];
                     return strcmp(word.c_str() + level+1, suffix.c_str()) == 0;// chech if the suffix is the same
@@ -933,7 +960,7 @@ namespace yas{
                     pos_end = louds.next(pos_begin); // get end pos node
                 }
             }
-            return find(pos_begin, pos_end, '\0') != -1;
+            return find(pos_begin, pos_end, '\0') != pos_end;
         }
     };
 

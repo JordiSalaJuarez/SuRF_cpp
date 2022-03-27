@@ -20,11 +20,6 @@ std::vector<std::string> get_input_data(auto n_keys){
         file.close();
         return keys;
     }(n_keys);
-    // std::random_device rd;
-    // std::mt19937 g(rd());
-    // std::shuffle(begin(keys), end(keys), g);
-    // keys.resize(n_keys);
-    // std::sort(begin(keys), end(keys));
     return keys;
 }
 
@@ -112,6 +107,37 @@ static void BM_PointQueryLoudsSparse(benchmark::State& state) {
     }
 }
 
+
+static void BM_PointQueryLoudsDensePaper(benchmark::State& state) {
+    auto keys = get_input_data(state.range());
+    tlx::btree_set<std::string> tree;
+    surf::SuRFBuilder builder(true, 0, surf::SuffixType::kNone, 0, 0);
+    builder.build(keys);
+    auto louds_dense = surf::LoudsDense(&builder);
+    for (auto _ : state){
+        surf::position_t pos = 0;
+        auto key = keys[rand()%size(keys)];
+        auto found = louds_dense.lookupKey(key, pos);
+        benchmark::DoNotOptimize(found);
+        benchmark::DoNotOptimize(louds_dense);
+    }
+}
+
+static void BM_PointQueryLoudsDense(benchmark::State& state) {
+    auto keys = get_input_data(state.range());
+    auto builder = yas::LoudsBuilder::from_vector(keys);
+    auto louds_dense = yas::LoudsDense::from_builder(builder);
+    for (auto _ : state){
+        auto key = keys[rand()%size(keys)];
+        auto found = louds_dense.look_up(key, 0);
+        benchmark::DoNotOptimize(found);
+        benchmark::DoNotOptimize(louds_dense);
+    }
+}
+
+
+
+
 static void BM_AccessBitLoudsSparsePaper(benchmark::State& state) {
     auto keys = get_input_data(state.range());
     tlx::btree_set<std::string> tree;
@@ -157,8 +183,12 @@ const static auto N = 1000000;
 // BENCHMARK(BM_PointQueryBTree)->Arg(N);
 // BENCHMARK(BM_PointQuerySurf)->Arg(N);
 // BENCHMARK(BM_PointQuerySurfPaper)->Arg(N);
-BENCHMARK(BM_PointQueryLoudsSparsePaper)->Arg(N);
-BENCHMARK(BM_PointQueryLoudsSparse)->Arg(N);
+// BENCHMARK(BM_PointQueryLoudsSparsePaper)->Arg(N);
+// BENCHMARK(BM_PointQueryLoudsSparse)->Arg(N);
+
+BENCHMARK(BM_PointQueryLoudsDensePaper)->Arg(N);
+BENCHMARK(BM_PointQueryLoudsDense)->Arg(N);
+
 // BENCHMARK(BM_AccessBitLoudsSparsePaper)->Arg(N);
 // BENCHMARK(BM_AccessBitLoudsSparse)->Arg(N);
 // BENCHMARK(BM_TraversalSurfPaper)

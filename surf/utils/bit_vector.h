@@ -12,7 +12,7 @@ inline uint64_t nthset(uint64_t x, unsigned n) {
 template<typename T>
 concept NestedIterBool = 
 std::ranges::range<T> && 
-std::ranges::range<std::ranges::range_value_t<T>> && 
+std::ranges::range<std::ranges::range_value_t<T>> &&
 std::same_as<std::ranges::range_value_t<std::ranges::range_value_t<T>>, bool>;
 
 template<typename T>
@@ -37,7 +37,8 @@ class BitVector{
     std::vector<size_t> lut_select;
     size_t n_bits;
     BitVector(size_t n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n) {}
-    BitVector(const NestedIterBool auto &other, auto n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n){
+    template <NestedIterBool Iter>
+    BitVector(const Iter &other, auto n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n){
         auto i = 0;
         for(const auto &xs: other)
             for(auto x: xs){
@@ -47,7 +48,8 @@ class BitVector{
         compute_rank();
         compute_select();
     }
-    BitVector(const IterBool auto &other, auto n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n){
+    template <IterBool Iter>
+    BitVector(const Iter &other, auto n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n){
         auto i = 0;
         for(auto x: other){
             bit_vector[i/N].set(i&(N-1), x);
