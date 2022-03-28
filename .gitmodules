@@ -7,3 +7,6 @@
 [submodule "surf_paper"]
 	path = surf_paper
 	url = https://github.com/efficient/SuRF.git
+[submodule "libart"]
+	path = libart
+	url = git@github.com:armon/libart.git
