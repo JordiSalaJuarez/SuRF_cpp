@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+﻿cmake_minimum_required(VERSION 3.14)
 project(surf_cpp)
 # GoogleTest requires at least C++11
 set(CMAKE_CXX_STANDARD 20)
@@ -25,7 +25,7 @@ FetchContent_MakeAvailable(googletest)
 # configure_file(data/input data/input COPYONLY)
 # configure_file(data/load_randint data/load_randint COPYONLY)
 # configure_file(data/load_randint data/load_randint_slow COPYONLY)
-configure_file(data/keys_1M data/keys_1M COPYONLY)
+# configure_file(data/keys_1M data/keys_1M COPYONLY)
 configure_file(data/keys_100M data/keys_100M COPYONLY)
 
 enable_testing()
@@ -60,10 +60,13 @@ add_executable(my_benchmark benchmark/benchmark.cpp)
 target_link_libraries(my_benchmark tlx)
 target_link_libraries(my_benchmark benchmark::benchmark)
 target_link_libraries(my_benchmark ${OPENSSL_LIBRARIES} dl)
+target_link_libraries(my_benchmark ${GPERFTOOLS_PROFILER} profiler)
 
 add_executable(benchmark_utils benchmark/utils.cpp)
 target_link_libraries(benchmark_utils benchmark::benchmark)
 target_link_libraries(my_benchmark ${OPENSSL_LIBRARIES} dl)
+
+
 
 
 

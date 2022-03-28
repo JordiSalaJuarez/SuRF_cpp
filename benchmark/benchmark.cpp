@@ -7,6 +7,7 @@
 #include <random>
 #include <algorithm>
 #include <gperftools/profiler.h>
+#include <art.h>
 
 std::vector<std::string> get_input_data(auto n_keys){
     static auto keys = [] (size_t n_keys) {
@@ -113,6 +114,7 @@ static void BM_PointQueryLoudsDensePaper(benchmark::State& state) {
     surf::SuRFBuilder builder(true, 0, surf::SuffixType::kNone, 0, 0);
     builder.build(keys);
     auto louds_dense = surf::LoudsDense(&builder);
+    ProfilerStart("BM_PointQueryLoudsDensePaper.prof");
     for (auto _ : state){
         surf::position_t pos = 0;
         auto key = keys[rand()%size(keys)];
@@ -120,20 +122,21 @@ static void BM_PointQueryLoudsDensePaper(benchmark::State& state) {
         benchmark::DoNotOptimize(found);
         benchmark::DoNotOptimize(louds_dense);
     }
+    ProfilerStop();
 }
 
 static void BM_PointQueryLoudsDense(benchmark::State& state) {
     auto keys = get_input_data(state.range());
     auto builder = yas::LoudsBuilder::from_vector(keys);
     auto louds_dense = yas::LoudsDense::from_builder(builder);
+    ProfilerStart("BM_PointQueryLoudsDense.prof");
     for (auto _ : state){
         auto key = keys[rand()%size(keys)];
-        ProfilerStart("look_up.prof");
         auto found = louds_dense.look_up(key, 0);
-        ProfilerStop();
         benchmark::DoNotOptimize(found);
         benchmark::DoNotOptimize(louds_dense);
     }
+    ProfilerStop();
 }
 
 static void BM_AccessBitLoudsDensePaper(benchmark::State& state) {
@@ -240,7 +243,7 @@ const static auto N = 1000000;
 // BENCHMARK(BM_PointQueryLoudsSparsePaper)->Arg(N);
 // BENCHMARK(BM_PointQueryLoudsSparse)->Arg(N);
 
-// BENCHMARK(BM_PointQueryLoudsDensePaper)->Arg(N);
+BENCHMARK(BM_PointQueryLoudsDensePaper)->Arg(N);
 BENCHMARK(BM_PointQueryLoudsDense)->Arg(N);
 
 // BENCHMARK(BM_AccessBitLoudsDensePaper)->Arg(N);

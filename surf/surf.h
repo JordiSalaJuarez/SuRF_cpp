@@ -436,6 +436,7 @@ namespace yas{
         vector<std::bitset<256>> labels{};
         vector<std::bitset<256>> has_child{};
         vector<std::size_t> lut_has_child{};
+        vector<std::size_t> lut_labels{};
         vector<bool> is_prefix_key{};
         vector<string> values{};
         size_t n_levels{};
@@ -488,15 +489,18 @@ namespace yas{
                 }
             }
             result.lut_has_child.resize(std::size(result.has_child));
+            result.lut_labels.resize(std::size(result.labels));
             compute_rank(result.has_child, result.lut_has_child);
+            compute_rank(result.labels, result.lut_labels);
             return result;
         }
-        static void compute_rank(auto &has_child, auto &lut_has_child){
+
+        static void compute_rank(auto &blocks, auto &lut){
             auto sum = 0;
-            auto n_blocks = std::size(has_child);
+            auto n_blocks = std::size(blocks);
             for (auto i = 0 ; i < n_blocks; ++i){
-                lut_has_child[i] = sum;
-                sum += has_child[i].count();
+                lut[i] = sum;
+                sum += blocks[i].count();
             }
         }  
 
@@ -506,14 +510,8 @@ namespace yas{
         }
         
         size_t rank_l(size_t pos) __attribute__((const)) {
-            auto n = (pos + 1) / 256; 
-            auto m = (pos + 1) % 256;
-            auto count = 0;
-            for (auto i = 0; i < n; i++)
-                count += labels[i].count();
-            for(auto j = 0; j < m; j++)
-                count += labels[n][j];
-            return count;
+            assert(pos < std::size(has_child) * 256);
+            return lut_labels[pos / 256] + (labels[pos / 256] << ((256-1) - (pos & (256-1)))).count();
         }
 
         size_t rank_p(size_t pos) __attribute__((const)) {
