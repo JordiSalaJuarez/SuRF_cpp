@@ -24,9 +24,23 @@ std::vector<std::string> get_input_data(auto n_keys){
     return keys;
 }
 
+static void BM_ConstructionART(benchmark::State & state){
+    auto keys = get_input_data(state.range());
+    for (auto _ : state){
+        art_tree t;
+        int res = art_tree_init(&t);
+        assert(res == 0);
+        auto line = 1;
+        for (const auto& key: keys){
+            art_insert(&t, (const unsigned char *) key.c_str(),std::size(key), (void *) line);
+            ++line;
+        }
+        res = art_tree_destroy(&t);
+        assert(res == 0);
+    }
 
-
-
+    // state.counters["Size(MB)"] = size / 1024 / 1024 / state.iterations();
+}
 
 static void BM_ConstructionBTree(benchmark::State& state) {
     auto keys = get_input_data(state.range());
@@ -38,7 +52,7 @@ static void BM_ConstructionBTree(benchmark::State& state) {
     tree.bulk_load<decltype(begin(keys))>(begin(keys), end(keys));
     auto stats = tree.get_stats();
     auto size = stats.inner_nodes * sizeof(decltype(tree)::btree_impl::InnerNode) + stats.leaves * sizeof(decltype(tree)::btree_impl::LeafNode);
-    state.SetLabel(std::string("MB used ") + std::to_string(size / 1024 / 1024));
+    state.counters["Size(MB)"] = size / 1024 / 1024 ;
 }
 
 static void BM_ConstructionSurf(benchmark::State& state) {
@@ -47,6 +61,10 @@ static void BM_ConstructionSurf(benchmark::State& state) {
         auto builder = yas::LoudsBuilder::from_vector(keys);
         auto surf = yas::Surf::from_builder(builder, 1);
     }
+    auto builder = yas::LoudsBuilder::from_vector(keys);
+    auto surf = yas::Surf::from_builder(builder, 1);
+    state.counters["Size(MB)"] = surf.get_memory_usage() / 1024 / 1024 ;
+
 }
 
 static void BM_ConstructionSurfPaper(benchmark::State& state) {
@@ -55,7 +73,7 @@ static void BM_ConstructionSurfPaper(benchmark::State& state) {
         auto surf = surf::SuRF(keys);
     }
     auto surf = surf::SuRF(keys);
-    state.SetLabel(std::string("MB used ") + std::to_string(surf.getMemoryUsage() / 1024 / 1024));
+    state.counters["Size(MB)"] = surf.getMemoryUsage() / 1024 / 1024 ;
 }
 
 
@@ -87,6 +105,25 @@ static void BM_PointQuerySurfPaper(benchmark::State& state) {
     }
 }
 
+static void BM_PointQueryART(benchmark::State & state){
+    auto keys = get_input_data(state.range());
+    art_tree t;
+    int res = art_tree_init(&t);
+    assert(res == 0);
+    auto line = 1;
+    for (const auto& key: keys){
+        art_insert(&t, (const unsigned char *) key.c_str(),std::size(key), (void *) line);
+        ++line;
+    }
+    for (auto _ : state){
+        auto key = keys[rand()%size(keys)];
+        uintptr_t val = (uintptr_t)art_search(&t, (unsigned char*)key.c_str(), std::size(key));
+        benchmark::DoNotOptimize(val);
+    }
+    res = art_tree_destroy(&t);
+    assert(res == 0);
+}
+
 
 static void BM_PointQueryLoudsSparsePaper(benchmark::State& state) {
     auto keys = get_input_data(state.range());
@@ -97,6 +134,7 @@ static void BM_PointQueryLoudsSparsePaper(benchmark::State& state) {
     for (auto _ : state){
         benchmark::DoNotOptimize(louds_sparse.lookupKey(keys[rand()%size(keys)], 0));
     }
+    state.counters["Size(MB)"] = louds_sparse.getMemoryUsage() / 1024 / 1024 ;
 }
 
 static void BM_PointQueryLoudsSparse(benchmark::State& state) {
@@ -106,6 +144,7 @@ static void BM_PointQueryLoudsSparse(benchmark::State& state) {
     for (auto _ : state){
         benchmark::DoNotOptimize(louds_sparse.look_up(keys[rand()%size(keys)], 0));
     }
+    state.counters["Size(MB)"] = louds_sparse.get_memory_usage() / 1024 / 1024 ;
 }
 
 
@@ -191,10 +230,6 @@ static void BM_RankLoudsDense(benchmark::State& state) {
 }
 
 
-
-
-
-
 static void BM_AccessBitLoudsSparsePaper(benchmark::State& state) {
     auto keys = get_input_data(state.range());
     tlx::btree_set<std::string> tree;
@@ -233,18 +268,20 @@ static void BM_TraversalSurfPaper(benchmark::State& state) {
 const static auto MAX_N = 100000000;
 const static auto N = 1000000;
 
-// BENCHMARK(BM_ConstructionBTree)->Arg(N);
-// BENCHMARK(BM_ConstructionSurf)->Arg(N);
-// BENCHMARK(BM_ConstructionSurfPaper)->Arg(N);
+
+// BENCHMARK(BM_ConstructionBTree)->Arg(N)->Unit(benchmark::kMillisecond);;
+// BENCHMARK(BM_ConstructionSurf)->Arg(N)->Unit(benchmark::kMillisecond);;
+// BENCHMARK(BM_ConstructionSurfPaper)->Arg(N)->Unit(benchmark::kMillisecond);;
+// BENCHMARK(BM_ConstructionART)->Arg(N)->Unit(benchmark::kMillisecond);;
 
 // BENCHMARK(BM_PointQueryBTree)->Arg(N);
 // BENCHMARK(BM_PointQuerySurf)->Arg(N);
 // BENCHMARK(BM_PointQuerySurfPaper)->Arg(N);
-// BENCHMARK(BM_PointQueryLoudsSparsePaper)->Arg(N);
-// BENCHMARK(BM_PointQueryLoudsSparse)->Arg(N);
+BENCHMARK(BM_PointQueryLoudsSparsePaper)->Arg(N);
+BENCHMARK(BM_PointQueryLoudsSparse)->Arg(N);
 
-BENCHMARK(BM_PointQueryLoudsDensePaper)->Arg(N);
-BENCHMARK(BM_PointQueryLoudsDense)->Arg(N);
+// BENCHMARK(BM_PointQueryLoudsDensePaper)->Arg(N);
+// BENCHMARK(BM_PointQueryLoudsDense)->Arg(N);
 
 // BENCHMARK(BM_AccessBitLoudsDensePaper)->Arg(N);
 // BENCHMARK(BM_AccessBitLoudsDense)->Arg(N);

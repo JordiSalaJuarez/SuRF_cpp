@@ -36,6 +36,10 @@ class BitVector{
     std::vector<size_t> lut_rank;
     std::vector<size_t> lut_select;
     size_t n_bits;
+
+    size_t get_memory_usage(){
+        return std::size(lut_rank) * sizeof(size_t) + std::size(lut_select) * sizeof(size_t) + std::size(bit_vector)*sizeof(std::bitset<N>);
+    }
     BitVector(size_t n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n) {}
     template <NestedIterBool Iter>
     BitVector(const Iter &other, auto n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n){

@@ -52,6 +52,8 @@ include(GoogleTest)
 gtest_discover_tests(surf_test)
 gtest_discover_tests(test_bit_vector)
 
+# Add local libraries path to the build 
+link_directories(/usr/local/lib)
 
 add_subdirectory(tlx)
 add_subdirectory(google_benchmark)
@@ -61,6 +63,8 @@ target_link_libraries(my_benchmark tlx)
 target_link_libraries(my_benchmark benchmark::benchmark)
 target_link_libraries(my_benchmark ${OPENSSL_LIBRARIES} dl)
 target_link_libraries(my_benchmark ${GPERFTOOLS_PROFILER} profiler)
+# Lind Adaptative Radix trie to the benchmark
+target_link_libraries(my_benchmark art)
 
 add_executable(benchmark_utils benchmark/utils.cpp)
 target_link_libraries(benchmark_utils benchmark::benchmark)

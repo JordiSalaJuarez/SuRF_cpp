@@ -444,7 +444,21 @@ namespace yas{
         size_t to_level{};
         size_t n_trailing_children{};
         size_t max_size_key{};
+        size_t get_memory_usage(){
+            auto values_size = [&](){
+                auto ans = 0;
+                for (const auto& value: values){
+                    ans += std::size(value);
+                }
+                return ans;
+            }();
+            return std::size(labels) * sizeof(std::bitset<256>) +
+                std::size(has_child) * sizeof(std::bitset<256>) +
+                std::size(lut_has_child) * sizeof(std::size_t) +
+                std::size(lut_labels) * sizeof(std::size_t) +
+                values_size;
 
+        }
         static void merge_and_insert(const auto & vs, auto &r, size_t capacity){
             r.reserve(capacity);
             for (const auto &v: vs) r.insert(std::end(r), std::begin(v), std::end(v)); 
@@ -840,6 +854,18 @@ namespace yas{
         size_t n_trailing_children{};
         size_t max_size_key{};
 
+        size_t get_memory_usage(){
+            auto values_size = [&](){
+                auto ans = 0;
+                for (const auto& value: values){
+                    ans += std::size(value);
+                }
+                return ans;
+            }();
+            return std::size(labels) + has_child.get_memory_usage() + louds.get_memory_usage() + values_size;
+        }
+
+
         static LoudsSparse from_builder(LoudsBuilder &builder, size_t from_level = 0, size_t to_level = -1, size_t n_trailing_children = 0){
             if (to_level == -1) to_level = builder.n_levels;
 
@@ -968,6 +994,11 @@ namespace yas{
         shared_ptr<LoudsSparse> ls;
         size_t n_dense_levels;
         size_t n_nodes_dense_levels;
+
+        size_t get_memory_usage(){
+            return ld->get_memory_usage() + ls->get_memory_usage();
+        }
+
         static Surf from_builder(LoudsBuilder &builder, size_t n_dense_levels){
             auto n_nodes_level = [&](auto level) {
                 return count(begin(builder.louds[level]), end(builder.louds[level]), true);
