@@ -10,28 +10,27 @@
 #include <filesystem>
 #include <cassert>
 #include "surf.h"
-using namespace std;
-using namespace yas;
-int main()
-{
 
-	ifstream file("data/input");
-	auto builder = LoudsBuilder::from_stream(file);
-	auto surf = Surf::from_builder(builder, 1);
-	ifstream same_file("data/input");
-	for(auto key = string(); getline(same_file, key);){
+
+auto main() -> int
+{
+	std::ifstream file("data/input");
+	auto builder = yas::LoudsBuilder::from_stream(file);
+	auto surf = yas::Surf::from_builder(builder, 1);
+	std::ifstream same_file("data/input");
+	for(auto key = std::string(); std::getline(same_file, key);){
 		if (surf.look_up(key)){
-			cout << "Query (surf.look_up(\""<< key <<"\") passed" << endl;
+			std::cout << "Query (surf.look_up(\""<< key <<"\") passed" << std::endl;
 		} else {
-			cout << "Query (surf.look_up(\""<< key <<"\") failed" << endl;
+			std::cout << "Query (surf.look_up(\""<< key <<"\") failed" << std::endl;
 		}
 	}
 	auto wrong_keys = {"abc", "cba"};
-	for(auto &key: wrong_keys){
+	for(const auto &key: wrong_keys){
 		if (surf.look_up(key)){
-			cout << "Query (surf.look_up(\""<< key <<"\") failed" << endl;
+			std::cout << "Query (surf.look_up(\""<< key <<"\") failed" << std::endl;
 		} else {
-			cout << "Query (surf.look_up(\""<< key <<"\") passed" << endl;
+			std::cout << "Query (surf.look_up(\""<< key <<"\") passed" << std::endl;
 		}
 	}
 

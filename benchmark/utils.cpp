@@ -141,7 +141,7 @@ static void BM_RankPaper(benchmark::State& state) {
     vector<uint64_t> v(state.range()/U64::bit_size, 0);
     for (auto i = 0; i < state.range()/U64::bit_size; ++i)
         v[i] = rand();
-    surf::BitvectorRank bit_vector(U64::bit_size, {v}, {size(v)*U64::bit_size});
+    surf::BitvectorRank bit_vector(U64::bit_size, {v}, {static_cast<unsigned int>(size(v)*U64::bit_size)});
     for (auto _ : state){ 
         state.PauseTiming();
         auto i = rand() % state.range();

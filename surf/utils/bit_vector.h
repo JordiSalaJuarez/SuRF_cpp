@@ -3,17 +3,11 @@
 #include <x86intrin.h>
 #include <bit>
 #include <assert.h>
+#include <ranges>
 
 inline uint64_t nthset(uint64_t x, unsigned n) {
     return _tzcnt_u64(_pdep_u64(1ULL << n, x));
 }
-
-
-template<typename T>
-concept NestedIterBool = 
-std::ranges::range<T> && 
-std::ranges::range<std::ranges::range_value_t<T>> &&
-std::same_as<std::ranges::range_value_t<std::ranges::range_value_t<T>>, bool>;
 
 template<typename T>
 concept IterBool = 
@@ -31,29 +25,30 @@ class BitVector{
     static_assert(std::has_single_bit(N), "N has to be a power of two" );
     static_assert(std::has_single_bit(M), "M has to be a power of two" );
     static_assert(N <= M, "N <= M does not hold" );
-    typedef std::vector<std::vector<bool>> LevelBitVec; 
+    size_t n_bits;
     std::vector<std::bitset<N>> bit_vector;
     std::vector<size_t> lut_rank;
     std::vector<size_t> lut_select;
-    size_t n_bits;
 
     size_t get_memory_usage(){
         return std::size(lut_rank) * sizeof(size_t) + std::size(lut_select) * sizeof(size_t) + std::size(bit_vector)*sizeof(std::bitset<N>);
     }
     BitVector(size_t n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n) {}
-    template <NestedIterBool Iter>
+    template <IterBool Iter>
     BitVector(const Iter &other, auto n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n){
         auto i = 0;
-        for(const auto &xs: other)
-            for(auto x: xs){
-                bit_vector[i/N].set(i&(N-1), x);
-                ++i;
-            }        
+        for(auto x: other){
+            bit_vector[i/N].set(i&(N-1), x);
+            ++i;
+        }        
         compute_rank();
         compute_select();
     }
-    template <IterBool Iter>
-    BitVector(const Iter &other, auto n): bit_vector(n/N + (n&(N-1)? 1:0)), lut_rank(n/M + (n&(M-1)? 1:0)), lut_select(n/M + (n&(M-1)? 1:0)), n_bits(n){
+
+    BitVector(std::ranges::sized_range auto other): n_bits(std::size(other)),
+        bit_vector(n_bits/N + (n_bits&(N-1)? 1:0)), 
+        lut_rank(n_bits/M + (n_bits&(M-1)? 1:0)), 
+        lut_select(n_bits/M + (n_bits&(M-1)? 1:0)) {
         auto i = 0;
         for(auto x: other){
             bit_vector[i/N].set(i&(N-1), x);

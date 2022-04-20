@@ -1,15 +1,17 @@
 ﻿cmake_minimum_required(VERSION 3.14)
 project(surf_cpp)
+
+# Add local libraries path to the build 
+link_directories(/usr/local/lib)
+
+# find_package(dl REQUIRED)
+# find_package(boost_system REQUIRED)
+# find_package(art REQUIRED)
+# find_package(tlx REQUIRED)
+
 # GoogleTest requires at least C++11
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=haswell -ftree-vectorize -ffast-math")
-option(COZ_PROFILING, "Coz profiling" ON)
-
-if (COZ_PROFILING)
-  find_package(coz-profiler REQUIRED)
-  target_compile_definitions(${PROJECT_NAME} PRIVATE -DCOZ_PROFILING=1)
-  target_include_directories(${PROJECT_NAME} PUBLIC ${COZ_INCLUDE_DIRS})
-endif(COZ_PROFILING)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -34,12 +36,9 @@ add_executable(
   surf_test
   "surf/test.cpp"
 )
-target_link_libraries(
-  surf_test
-  gtest_main
-)
+target_link_libraries(surf_test gtest_main)
 target_link_libraries(surf_test ${OPENSSL_LIBRARIES} dl)
-
+target_link_libraries(surf_test boost_system)
 add_executable(
   test_bit_vector
   "surf/test/test_bit_vector.cpp"
@@ -52,9 +51,6 @@ include(GoogleTest)
 gtest_discover_tests(surf_test)
 gtest_discover_tests(test_bit_vector)
 
-# Add local libraries path to the build 
-link_directories(/usr/local/lib)
-
 add_subdirectory(tlx)
 add_subdirectory(google_benchmark)
 add_subdirectory(surf_paper)
@@ -62,8 +58,10 @@ add_executable(my_benchmark benchmark/benchmark.cpp)
 target_link_libraries(my_benchmark tlx)
 target_link_libraries(my_benchmark benchmark::benchmark)
 target_link_libraries(my_benchmark ${OPENSSL_LIBRARIES} dl)
-target_link_libraries(my_benchmark ${GPERFTOOLS_PROFILER} profiler)
-# Lind Adaptative Radix trie to the benchmark
+target_link_libraries(my_benchmark tx)
+# target_link_libraries(my_benchmark tcmalloc_minimal)
+# target_link_libraries(my_benchmark ${GPERFTOOLS_PROFILER} profiler)
+# Lind Adaptative Radix trie to the benchmark 
 target_link_libraries(my_benchmark art)
 
 add_executable(benchmark_utils benchmark/utils.cpp)

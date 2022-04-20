@@ -71,6 +71,17 @@
         "set": "cpp",
         "unordered_set": "cpp",
         "variant": "cpp",
-        "regex": "cpp"
-    }
+        "regex": "cpp",
+        "shared_mutex": "cpp",
+        "xstring": "cpp",
+        "complex": "cpp",
+        "typeindex": "cpp",
+        "cfenv": "cpp"
+    },
+    "cmake.configureArgs": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
+    "clang-tidy.buildPath": "build",
+    "cmake.sourceDirectory": "${workspaceFolder}/.",
+    "C_Cpp.intelliSenseEngine": "Disabled",
+    "C_Cpp.autocomplete": "Disabled",  // So you don't get autocomplete from both extensions.
+    "C_Cpp.errorSquiggles": "Disabled", // So you don't get error squiggles from both extensions (clangd's seem to be more reliable anyway).
 }
