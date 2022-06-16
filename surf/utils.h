@@ -23,9 +23,6 @@ auto sum(Args const & ... args) { return (... + args); }
 template<typename... Args>
 auto prod(Args const & ... args) { return (... * args); }
 
-auto slice(std::ranges::forward_range auto xs, size_t from, size_t to){
-  return std::span(std::begin(xs) + from, std::begin(xs) + to);
-}
 
 template<typename T>
   concept range_value_string = 
@@ -45,7 +42,7 @@ std::vector<T> merge(std::span<std::vector<T>> xs, std::size_t capacity)
 }
 
 template <class To, class From>
-std::vector<To> merge(std::span<std::vector<From>> xs, std::size_t capacity)
+auto merge(std::span<std::vector<From>> xs, std::size_t capacity) -> std::vector<To>
 {
     std::vector<To> ans;
     ans.reserve(capacity);
@@ -56,7 +53,7 @@ std::vector<To> merge(std::span<std::vector<From>> xs, std::size_t capacity)
 }
 
 
-auto count(std::vector<bool> const & vs, bool x) -> size_t
+inline auto count(std::vector<bool> const & vs, bool x) -> size_t
 {
   return std::count(std::begin(vs), std::end(vs), x);
 }

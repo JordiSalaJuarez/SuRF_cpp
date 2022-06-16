@@ -4,6 +4,7 @@
 #include <bit>
 #include <assert.h>
 #include <ranges>
+#include <cstddef>
 
 inline uint64_t nthset(uint64_t x, unsigned n) {
     return _tzcnt_u64(_pdep_u64(1ULL << n, x));
@@ -22,9 +23,9 @@ concept IterULongLong =
 template<size_t N, size_t M = 512>
 class BitVector{
     public:
-    static_assert(std::has_single_bit(N), "N has to be a power of two" );
-    static_assert(std::has_single_bit(M), "M has to be a power of two" );
-    static_assert(N <= M, "N <= M does not hold" );
+    static_assert( std::has_single_bit(N), "N has to be a power of two" );
+    static_assert( std::has_single_bit(M), "M has to be a power of two" );
+    static_assert( N <= M, "N <= M does not hold" );
     size_t n_bits;
     std::vector<std::bitset<N>> bit_vector;
     std::vector<size_t> lut_rank;
@@ -49,6 +50,7 @@ class BitVector{
         bit_vector(n_bits/N + (n_bits&(N-1)? 1:0)), 
         lut_rank(n_bits/M + (n_bits&(M-1)? 1:0)), 
         lut_select(n_bits/M + (n_bits&(M-1)? 1:0)) {
+        if (n_bits == 0) return;
         auto i = 0;
         for(auto x: other){
             bit_vector[i/N].set(i&(N-1), x);
@@ -90,30 +92,7 @@ class BitVector{
         }
     }
 
-    // void compute_select(){
-    //     assert(std::size(lut_rank) > 0);
-    //     auto n_set_bits = rank(n_bits - 1);
-    //     lut_select.resize(n_set_bits/N + (n_set_bits&(N-1)?1:0));
-    //     lut_select.shrink_to_fit();
-    //     if (std::size(lut_select) == 0) return;
-    //     auto bs_before = 0, bs_after = 0; // bits set before and after
-    //     auto j = 1; 
-    //     auto i = 0;
-    //     while(bit_vector[i].none()) ++i;
-    //     lut_select[0] = i*N + nthset(bit_vector[i].to_ullong(), 0);
-    //     bs_before = bit_vector[i++].count()-1;
-    //     bs_after = bs_before;
-    //     for (; i < std::size(bit_vector); ++i){
-    //         bs_after += bit_vector[i].count();
-    //         if (bs_before/N  != bs_after/N){
-    //             lut_select[bs_after/N] = i*N + nthset(bit_vector[i].to_ullong(), (bs_after & ~(N-1)) - bs_before - 1);
-    //         };
-    //         bs_before = bs_after;
-    //     }
-        
-    // }
-
-    size_t next(size_t pos){
+    auto next(size_t pos) -> size_t{
         auto offset = (pos & (N-1)) + 1;
         auto word = bit_vector[pos / N] >> offset << offset;
         if (word.any()) return (pos&~(N-1)) + nthset(word.to_ullong(), 0);
@@ -123,6 +102,11 @@ class BitVector{
         }
         return n_bits;
     }
+
+    auto succ(size_t pos) -> size_t{
+        return next(pos);
+    }
+
 
     size_t rank(size_t pos){
         assert(pos < n_bits);
@@ -199,3 +183,29 @@ class BitVector{
     }
 
 };
+
+// template<typename SB, typename B>
+// struct SuperBlock{
+//     enum : size_t{n_bytes = sizeof(SB), n_blocks = sizeof(SB)/ sizeof(B), n_bits_block = sizeof(B)*8, n_bits_super = sizeof(SB)*8 };
+//     union {
+//         SB m_block;
+//         B m_data[n_blocks];
+//     };
+//     auto count() -> size_t;
+//     auto block() -> SB&;
+//     auto data() -> B*;
+//     auto rank(size_t) -> size_t;
+//     auto select(size_t) -> size_t;
+//     auto operator[](size_t) -> bool;
+// };
+
+// struct Foo :SuperBlock <__m512i, std::byte>{
+//     auto operator[](size_t bit) -> bool {
+//         return static_cast<bool>(m_data[bit / n_bits_block] & static_cast<std::byte>(0x1 << (bit & (n_bits_block-1))));
+//     }
+//     auto count() -> size_t {
+//         return _mm512_popcnt_epi64(m_block);
+//     }
+// };
+
+

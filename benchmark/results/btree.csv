@@ -1,0 +1,13 @@
+name,iterations,real_time,cpu_time,time_unit,bytes_per_second,items_per_second,label,error_occurred,error_message,"#Keys","Bits","Bytes/s","FPR","InputSize(B)","Ops/s","Size(B)"
+"btree::build<Dataset::DNA>",1,7.07497e+08,7.07486e+08,ns,,,,,,1.52651e+07,0,2.60736e+19,0,1.84467e+19,2.15766e+07,6.14423e+08
+"btree::point_query<Dataset::DNA>",1,3.01898e+09,3.00977e+09,ns,,,,,,7.63257e+06,0,6.12895e+18,0,1.84467e+19,5.07186e+06,3.07212e+08
+"btree::range_query<Dataset::DNA>",1,5.18473e+09,5.18472e+09,ns,,,,,,7.63257e+06,0,3.55791e+18,0,1.84467e+19,2.94426e+06,3.07212e+08
+"btree::build<Dataset::GEO>",1,1.0886e+09,1.08513e+09,ns,,,,,,2.38365e+07,0,1.04432e+19,0,1.13322e+19,2.19666e+07,9.59421e+08
+"btree::point_query<Dataset::GEO>",1,4.14635e+09,4.14616e+09,ns,,,,,,1.19183e+07,0,2.73318e+18,0,1.41603e+18,5.74907e+06,4.79712e+08
+"btree::range_query<Dataset::GEO>",1,8.74687e+09,8.74685e+09,ns,,,,,,1.19183e+07,0,1.29557e+18,0,1.41603e+18,2.72516e+06,4.79712e+08
+"btree::build<Dataset::WIKI>",1,1.52193e+10,1.52186e+10,ns,,,,,,5.52684e+07,0,1.16516e+18,0,1.77321e+19,3.63163e+06,2.22455e+09
+"btree::point_query<Dataset::WIKI>",1,1.38485e+10,1.38484e+10,ns,,,,,,2.76342e+07,0,1.28044e+18,0,1.63041e+19,3.99095e+06,1.11228e+09
+"btree::range_query<Dataset::WIKI>",1,2.99063e+10,2.99062e+10,ns,,,,,,2.76342e+07,0,5.92925e+17,0,1.63041e+19,1.84806e+06,1.11228e+09
+"btree::build<Dataset::ZIPFIAN>",1,9.49204e+09,9.49194e+09,ns,,,,,,1e+08,0,1.94246e+18,0,1.84377e+19,1.05353e+07,4.025e+09
+"btree::point_query<Dataset::ZIPFIAN>",1,1.67455e+10,1.67455e+10,ns,,,,,,5e+07,0,1.10105e+18,0,7.49174e+18,5.97174e+06,2.0125e+09
+"btree::range_query<Dataset::ZIPFIAN>",1,3.41758e+10,3.41757e+10,ns,,,,,,5e+07,0,5.39498e+17,0,7.49174e+18,2.92606e+06,2.0125e+09

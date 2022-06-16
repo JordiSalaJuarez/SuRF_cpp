@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <initializer_list>
+#include "bloom/bloom.h"
+#include "builder.h"
 #include "suffix.h"
 #include "surf.h"
 #include "utils.h"
@@ -104,7 +106,7 @@ TEST(LoudsSparseTest, PrimitiveTrie) {
   std::vector<bool> has_child =  { 1 ,  0,   1,   0 ,  0,   0 };
   std::vector<bool> louds =      { 1 ,  1,   0,   0 ,  1,   0 };
   vector<string> suffix =        { "a", "a", "", ""};
-  auto sparse = LoudsSparse<suffix::Suffix>(keys);
+  auto sparse = LoudsSparse<suffix::SuffixArray<kind::Suffix>>(keys);
   ASSERT_TRUE(eq(size(sparse.labels),size(sparse.has_child), size(sparse.louds), size(labels))) << "Not all sizes are the same";
   ASSERT_EQ(size(sparse.labels), size(labels));
   for (auto j=0; j < size(sparse.labels); j++){
@@ -155,7 +157,7 @@ TEST(LoudsSparseTest, ComplexTrie) {
   vector<string> suffix =   {"plice", "", "ther", "", "per", "", "ing", "", "en", "s", "per"};
 
 
-  auto sparse = LoudsSparse<suffix::Suffix>(keys);
+  auto sparse = LoudsSparse<suffix::SuffixArray<kind::Suffix>>(keys);
   ASSERT_TRUE(eq(size(sparse.labels),size(sparse.has_child), size(sparse.louds), size(labels))) << "Not all sizes are the same";
   ASSERT_EQ(size(sparse.labels), size(labels));
   for (auto j=0; j < size(sparse.labels); j++){
@@ -189,6 +191,20 @@ TEST(LoudsSparseTest, ComplexTrie) {
   EXPECT_FALSE(sparse.look_up("tor"));
   EXPECT_FALSE(sparse.look_up("spline"));
   EXPECT_FALSE(sparse.look_up("toys"));
+
+  for (auto i = 0; i < std::size(keys); ++i){
+      EXPECT_EQ(sparse.lb(keys[i]), keys[i]);
+  }
+
+  for (auto i = 0; i < std::size(keys); ++i){
+      EXPECT_EQ(sparse.ub(keys[i]), keys[i]);
+  }
+
+  for (auto i = 0; i < std::size(keys)-2; ++i){
+      EXPECT_TRUE(sparse.look_up_range(keys[i], keys[i+2])) << "from: " << keys[i] << " to: " << keys[i+2];
+  }
+
+
 }
 
 
@@ -216,7 +232,7 @@ TEST(LoudsDenseTest, PrimitiveTrie) {
   vector<std::bitset<256>> has_child =  {"a"_bs,  "b"_bs,  ""_bs };
   vector<string> suffix =               { "a", "a", "", ""};
 
-  auto dense = LoudsDense<suffix::Suffix>(keys);
+  auto dense = LoudsDense<suffix::SuffixArray<kind::Suffix>>(keys);
   ASSERT_TRUE(eq(size(dense.labels),size(dense.has_child), size(labels))) << "Not all sizes are the same";
   ASSERT_EQ(size(dense.labels), size(labels));
   for (auto j=0; j < size(dense.labels); j++){
@@ -261,7 +277,7 @@ TEST(LoudsDenseTest, ComplexTrie) {
   vector<string> suffix =               {"plice", "", "ther", "", "per", "", "ing", "", "en", "s", "per"};
 
   
-  auto dense = LoudsDense<suffix::Suffix>(keys);
+  auto dense = LoudsDense<suffix::SuffixArray<kind::Suffix>>(keys);
   ASSERT_TRUE(eq(size(dense.labels),size(dense.has_child), size(labels))) << "Not all sizes are the same";
   ASSERT_EQ(size(dense.labels), size(labels));
   for (auto j=0; j < size(dense.labels); j++){
@@ -303,7 +319,7 @@ TEST(SurfTest, PrimitiveTrie) {
     "aca"
   };
 
-  auto surf = yas::Surf<suffix::Hash<1>>(keys, 1);
+  auto surf = yas::Surf<suffix::SuffixArray<kind::Suffix>>(keys);
 
   EXPECT_TRUE(surf.look_up("aaa"));
   EXPECT_TRUE(surf.look_up("aba"));
@@ -313,11 +329,46 @@ TEST(SurfTest, PrimitiveTrie) {
   EXPECT_FALSE(surf.look_up("bca"));
   EXPECT_FALSE(surf.look_up("bcad"));
   EXPECT_FALSE(surf.look_up("dcae"));
-  
-  // surf.range_query("aaa", "abb");
+
+
+  auto trim = [](std::string&& key){
+    if (key.back() == '\0') key.pop_back();
+    return key;
+  };
+  auto all_keys = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = surf.begin(begin_prefix, begin_idxs);
+    auto end = surf.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+
+  auto all_keys_reversed = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = surf.begin(begin_prefix, begin_idxs);
+    auto end = surf.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = end; it != begin; --it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+  auto expected_keys = vector<string>{"aaa", "aba", "abb"};
+  auto expected_keys_reversed = vector<string>{"aca", "abb", "aba"};
+  EXPECT_TRUE(all_keys() == expected_keys);
+  EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
 }
 
-TEST(SurfTest, ComplexTrie) {
+TEST(SurfTestSuffix, ComplexTrie) {
   // using namespace std::string_literals;
   std::vector<std::string> keys{
     "f",
@@ -334,7 +385,101 @@ TEST(SurfTest, ComplexTrie) {
   };
 
 
-  auto surf = yas::Surf<suffix::Suffix>(keys, 1);
+  auto surf = yas::Surf<suffix::SuffixArray<kind::Suffix>>(keys);
+  auto trim = [](std::string&& key){
+    if (key.back() == '\0') key.pop_back();
+    return key;
+  };
+  auto all_keys = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = surf.begin(begin_prefix, begin_idxs);
+    auto end = surf.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+
+  auto all_keys_reversed = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = surf.begin(begin_prefix, begin_idxs);
+    auto end = surf.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = end; it != begin; --it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+
+  auto all_keys_lb = [&](std::string_view key){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = surf.lb_iter(key, begin_prefix, begin_idxs);
+    auto end = surf.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+  auto all_keys_ub = [&](auto key){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = surf.begin(begin_prefix, begin_idxs);
+    auto end = surf.ub_iter(key, end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+  auto expected_keys = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
+  auto expected_keys_reversed = vector<string>{"trying", "tripper", "tries", "toy", "topper", "splice", "fat", "fasten", "fas", "farther"};
+  auto expected_keys_lb = vector<string>{"fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
+  auto expected_keys_ub = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper"};
+  auto EXPECT_VECTOR_EQ = [&](auto left, auto right){
+    for (auto i = 0UL; i < left.size(); ++i){
+      EXPECT_EQ(left[i], right[i]) << "Failed vector equality between " << left[i] << " and " << right[i] << " on index " << i;
+    }
+  };
+
+  EXPECT_VECTOR_EQ(all_keys(), expected_keys);
+  EXPECT_VECTOR_EQ(all_keys_reversed(), expected_keys_reversed);
+  EXPECT_VECTOR_EQ(all_keys_lb("fasten"), expected_keys_lb);
+  EXPECT_VECTOR_EQ(all_keys_ub("toy"), expected_keys_ub);
+  
+}
+
+
+TEST(SurfTestHash, ComplexTrie) {
+  // using namespace std::string_literals;
+  std::vector<std::string> keys{
+    "f",
+    "farther",
+    "fas",
+    "fasten",
+    "fat",
+    "splice",
+    "topper",
+    "toy",
+    "tries",
+    "tripper",
+    "trying"
+  };
+
+
+auto surf = yas::Surf<suffix::SuffixBloom<8>>(keys);
   
   EXPECT_TRUE(surf.look_up("f"));
   EXPECT_TRUE(surf.look_up("farther"));
@@ -347,271 +492,416 @@ TEST(SurfTest, ComplexTrie) {
   EXPECT_TRUE(surf.look_up("tries"));
   EXPECT_TRUE(surf.look_up("tripper"));
   EXPECT_TRUE(surf.look_up("trying"));
-  EXPECT_FALSE(surf.look_up("try"));
-  EXPECT_FALSE(surf.look_up("top"));
-  EXPECT_FALSE(surf.look_up("tor"));
-  EXPECT_FALSE(surf.look_up("spline"));
+  EXPECT_FALSE(surf.look_up("fave"));
+  EXPECT_FALSE(surf.look_up("fass"));
 
   // surf.range_query("f", "trying");
   
 }
 
-
-
-// TEST(LoudsDenseTest, PrimitiveTrieRange) {
-//   // using namespace std::string_literals;
-//   std::stringstream iss;
-//   iss << "aaa" << std::endl;
-//   iss << "aba" << std::endl;
-//   iss << "abb" << std::endl;
-//   iss << "aca" << std::endl;
+TEST(LoudsSparseTest, PrimitiveTrieRange) {
+  // using namespace std::string_literals;
+  vector<std::string> keys {
+    "aaa",
+    "aba",
+    "abb",
+    "aca"
+  };
 
   
-//   auto builder = LoudsBuilder<>::from_stream(iss);
-//   auto dense = LoudsDense<>::from_builder(builder);
-//   auto get_stats = [&](auto from, auto to){
-//     struct stats {size_t count{0}; vector<string> words{};};
-//     stats ans{};
-//     auto count = 0;
-//     for (auto it = dense.begin(from, to); it != dense.end(); ++it){
-//       ans.count += 1;
-//       ans.words.push_back(*it);
-//     }
-//     return ans;
+  auto sparse = LoudsSparse<suffix::SuffixArray<kind::Suffix>>(keys);
+
+  auto trim = [](std::string&& key){
+    if (key.back() == '\0') key.pop_back();
+    return key;
+  };
+  auto all_keys = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = sparse.begin(begin_prefix, begin_idxs);
+    auto end = sparse.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+
+  auto all_keys_reversed = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = sparse.begin(begin_prefix, begin_idxs);
+    auto end = sparse.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = end; it != begin; --it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+  auto expected_keys = vector<string>{"aaa", "aba", "abb"};
+  auto expected_keys_reversed = vector<string>{"aca", "abb", "aba"};
+  EXPECT_TRUE(all_keys() == expected_keys);
+  EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
+}
+
+TEST(LoudsSparseTest, ComplexTrieRange) {
+  // using namespace std::string_literals;
+  std::vector<std::string> keys{
+    "f",
+    "farther",
+    "fas",
+    "fasten",
+    "fat",
+    "splice",
+    "topper",
+    "toy",
+    "tries",
+    "tripper",
+    "trying"
+  };
+
+  
+  auto sparse = LoudsSparse<suffix::SuffixArray<kind::Suffix>>(keys);
+  auto trim = [](std::string&& key){
+    if (key.back() == '\0') key.pop_back();
+    return key;
+  };
+  auto all_keys = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = sparse.begin(begin_prefix, begin_idxs);
+    auto end = sparse.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+
+  auto all_keys_reversed = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = sparse.begin(begin_prefix, begin_idxs);
+    auto end = sparse.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = end; it != begin; --it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+
+  auto all_keys_lb = [&](std::string_view key){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = sparse.lb_iter(key, begin_prefix, begin_idxs);
+    auto end = sparse.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+  auto all_keys_ub = [&](auto key){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = sparse.begin(begin_prefix, begin_idxs);
+    auto end = sparse.ub_iter(key, end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+  auto expected_keys = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
+  auto expected_keys_reversed = vector<string>{"trying", "tripper", "tries", "toy", "topper", "splice", "fat", "fasten", "fas", "farther"};
+  auto expected_keys_lb = vector<string>{"fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
+  auto expected_keys_ub = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper"};
+  auto EXPECT_VECTOR_EQ = [&](auto left, auto right){
+    for (auto i = 0UL; i < left.size(); ++i){
+      EXPECT_EQ(left[i], right[i]) << "Failed vector equality between " << left[i] << " and " << right[i] << " on index " << i;
+    }
+  };
+
+  EXPECT_VECTOR_EQ(all_keys(), expected_keys);
+  EXPECT_VECTOR_EQ(all_keys_reversed(), expected_keys_reversed);
+  EXPECT_VECTOR_EQ(all_keys_lb("fasten"), expected_keys_lb);
+  EXPECT_VECTOR_EQ(all_keys_ub("toy"), expected_keys_ub);
+}
+
+
+TEST(LoudsDenseTest, PrimitiveTrieRange) {
+    // using namespace std::string_literals;
+  vector<std::string> keys {
+    "aaa",
+    "aba",
+    "abb",
+    "aca"
+  };
+
+  
+  auto dense = LoudsDense<suffix::SuffixArray<kind::Suffix>>(keys);
+
+  auto trim = [](std::string&& key){
+    if (key.back() == '\0') key.pop_back();
+    return key;
+  };
+  auto all_keys = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = dense.begin(begin_prefix, begin_idxs);
+    auto end = dense.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+
+  auto all_keys_reversed = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = dense.begin(begin_prefix, begin_idxs);
+    auto end = dense.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = end; it != begin; --it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+  auto expected_keys = vector<string>{"aaa", "aba", "abb"};
+  auto expected_keys_reversed = vector<string>{"aca", "abb", "aba"};
+  EXPECT_TRUE(all_keys() == expected_keys);
+  EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
+}
+
+TEST(LoudsDenseTest, ComplexTrieRange) {
+    // using namespace std::string_literals;
+  std::vector<std::string> keys{
+    "f",
+    "farther",
+    "fas",
+    "fasten",
+    "fat",
+    "splice",
+    "topper",
+    "toy",
+    "tries",
+    "tripper",
+    "trying"
+  };
+
+  
+  auto dense = LoudsDense<suffix::SuffixArray<kind::Suffix>>(keys);
+  auto trim = [](std::string&& key){
+    if (key.back() == '\0') key.pop_back();
+    return key;
+  };
+  auto all_keys = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = dense.begin(begin_prefix, begin_idxs);
+    auto end = dense.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+
+  auto all_keys_reversed = [&](){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = dense.begin(begin_prefix, begin_idxs);
+    auto end = dense.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = end; it != begin; --it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+
+  auto all_keys_lb = [&](std::string_view key){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = dense.lb_iter(key, begin_prefix, begin_idxs);
+    auto end = dense.end(end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+  auto all_keys_ub = [&](auto key){
+    std::string begin_prefix{};
+    std::string end_prefix{};
+    std::vector<size_t> begin_idxs{};
+    std::vector<size_t> end_idxs{};
+    auto begin = dense.begin(begin_prefix, begin_idxs);
+    auto end = dense.ub_iter(key, end_prefix, end_idxs);
+    vector<string> ans{};
+    for (auto it = begin; it != end; ++it){
+      ans.push_back(string(*it));
+    }
+    return ans;
+  };
+  auto expected_keys = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
+  auto expected_keys_reversed = vector<string>{"trying", "tripper", "tries", "toy", "topper", "splice", "fat", "fasten", "fas", "farther"};
+  auto expected_keys_lb = vector<string>{"fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
+  auto expected_keys_ub = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper"};
+  auto EXPECT_VECTOR_EQ = [&](auto left, auto right){
+    for (auto i = 0UL; i < left.size(); ++i){
+      EXPECT_EQ(left[i], right[i]) << "Failed vector equality between " << left[i] << " and " << right[i] << " on index " << i;
+    }
+  };
+
+  EXPECT_VECTOR_EQ(all_keys(), expected_keys);
+  EXPECT_VECTOR_EQ(all_keys_reversed(), expected_keys_reversed);
+  EXPECT_VECTOR_EQ(all_keys_lb("fasten"), expected_keys_lb);
+  EXPECT_VECTOR_EQ(all_keys_ub("toy"), expected_keys_ub);
+}
+
+
+TEST(BloomFilter, SampleKeys) {
+    // using namespace std::string_literals;
+  std::vector<std::string> keys{
+    "f",
+    "farther",
+    "fas",
+    "fasten",
+    "fat",
+    "splice",
+    "topper",
+    "toy",
+    "tries",
+    "tripper",
+    "trying"
+  };
+  suffix::SuffixBloom<8> filter{keys};
+  for(auto const & key: keys){
+    EXPECT_TRUE(filter.contains(0, key));
+  }
+  // Could fail and still be right
+  for(auto const & key: keys){
+    EXPECT_FALSE(filter.contains(0, key + "x"));
+  }
+}
+
+
+// TEST(BuilderPrune, ComplexTrie) {
+//   // using namespace std::string_literals;
+//   std::vector<std::string> keys{
+//     "f",
+//     "farther",
+//     "fas",
+//     "fasten",
+//     "fat",
+//     "splice",
+//     "topper",
+//     "toy",
+//     "tries",
+//     "tripper",
+//     "trying"
 //   };
-//   auto stats1 = get_stats("aaa", "aba");
-//   EXPECT_EQ(stats1.count, 2);
-//   for(const auto word : {"aaa", "aba"}){
-//     const auto& v = stats1.words;
-//     EXPECT_TRUE(find(begin(v), end(v), word) != end(v)) << "Word " << word << " was not found" ;
+
+//   auto n_levels = 4;
+//   std::vector<std::vector<char>> labels =     {{'f', 's', 't'}, {'\0', 'a', 'o', 'r'}, {'r', 's', 't', 'p', 'y', 'i', 'y'}, {'\0', 't', 'e', 'p'}};
+//   std::vector<std::vector<bool>> has_child =  {{ 1 ,  0 ,  1 }, { 0 ,  1 ,  1 ,  1 }, { 0 ,  1 ,  0 ,  0 ,  0 ,  1 ,  0 }, { 0 ,  0 ,  0 ,  0 }};
+//   std::vector<std::vector<bool>> louds =      {{ 1 ,  0 ,  0 }, { 1 ,  0 ,  1 ,  0 }, { 1 ,  0 ,  0 ,  1 ,  0 ,  1 ,  0 }, { 1 ,  0 ,  1 ,  0 }};
+//   vector<vector<string>> suffix = {{"plice"}, {""}, {"ther", "", "per", "", "ing"}, {"", "en", "s", "per"}};
+//   auto builder = LoudsBuilder(keys);
+//   ASSERT_EQ(builder.n_levels, n_levels) << "Number of levels is wrong, expected " << n_levels;
+//   ASSERT_TRUE(eq(size(builder.labels),size(builder.has_child), size(builder.louds), size(labels))) << "Not all sizes are the same";
+//   for(auto i : {0,1,2,3}){
+//     ASSERT_EQ(size(builder.labels[i]), size(labels[i])) << "nested labels size is different at level" << i;
+//     for (auto j=0; j < size(builder.labels[i]); j++){
+//       EXPECT_EQ(builder.labels[i][j], labels[i][j]) << "different labels element found at level " << i << " position " << j;
+//     }
+//     ASSERT_EQ(size(builder.has_child[i]), size(has_child[i]))  << "nested has_child size is different at level " << i;
+//     for (auto j=0; j < size(builder.has_child[i]); j++)
+//       EXPECT_EQ(builder.has_child[i][j], has_child[i][j]) << "different labels element found at level " << i << " position " << j;
+//     ASSERT_EQ(size(builder.louds[i]), size(louds[i])) << "nested louds size is different at level " << i;
+//     for (auto j=0; j < size(builder.louds[i]); j++)
+//       EXPECT_EQ(builder.louds[i][j], louds[i][j]) << "different louds element found at level " << i << " position " << j; 
+//     ASSERT_EQ(size(builder.suffixes[i]), size(suffix[i])) << "nested suffix size is different at level " << i;
+//     for (auto j=0; j < size(builder.suffixes[i]); j++)
+//       EXPECT_EQ(builder.suffixes[i][j], suffix[i][j]) << "different suffixes found at level " << i << "position " << j << " where " << builder.suffixes[i][j] << " != " << suffix[i][j];
+
+
+//   auto n_levels = 4;
+//   vector<char> labels =     { 'f', 's', 't', '\0', 'a', 'o', 'r', 'r', 's', 't', 'i', 'y' };
+//   vector<bool> has_child =  {  1 ,  0 ,  1 ,   0 ,  1 ,  0 ,  1 ,  0 ,  0 ,  0 ,  0 ,  0  };
+//   vector<bool> louds =      {  1 ,  0 ,  0 ,   1 ,  0 ,  1 ,  0 ,  1 ,  0 ,  0 ,  1 ,  0  };
+//   vector<string> suffix =   {"plice", "", "ther", "", "per", "", "ing", "", "en", "s", "per"};
+
+
+//   auto builder = LoudsBuilderPrunning(keys, 3);
+//   ASSERT_TRUE(eq(size(builder.labels),size(builder.has_child), size(builder.louds), size(labels))) << "Not all sizes are the same";
+//   ASSERT_EQ(size(builder.labels), size(labels));
+//   for (auto j=0; j < size(builder.labels); j++){
+//     EXPECT_EQ(builder.labels[j], labels[j]) << "different labels element found at position " << j;
+//   }
+//   ASSERT_EQ(size(builder.has_child), size(has_child));
+//   for (auto j=0; j < size(builder.has_child); j++)
+//     EXPECT_EQ(builder.has_child[j], has_child[j]) << "different labels element found at level position " << j;
+//   ASSERT_EQ(size(builder.louds), size(louds));
+//   for (auto j=0; j < size(builder.louds); j++)
+//     EXPECT_EQ(builder.louds[j], louds[j]) << "different louds element found at level position " << j; 
+
+//   // ASSERT_EQ(size(sparse.values), size(suffix));
+//   // for (auto j=0; j < size(sparse.values); j++)
+//   //   EXPECT_EQ(sparse.values[j], suffix[j]) << "different values found at level position " << j; 
+  
+
+//   EXPECT_TRUE(builder.look_up("f"));
+//   EXPECT_TRUE(builder.look_up("farther"));
+//   EXPECT_TRUE(builder.look_up("fas"));
+//   EXPECT_TRUE(builder.look_up("fasten"));
+//   EXPECT_TRUE(builder.look_up("fat"));
+//   EXPECT_TRUE(builder.look_up("splice"));
+//   EXPECT_TRUE(builder.look_up("topper"));
+//   EXPECT_TRUE(builder.look_up("toy"));
+//   EXPECT_TRUE(builder.look_up("tries"));
+//   EXPECT_TRUE(builder.look_up("tripper"));
+//   EXPECT_TRUE(builder.look_up("trying"));
+//   EXPECT_FALSE(builder.look_up("try"));
+//   EXPECT_FALSE(builder.look_up("top"));
+//   EXPECT_FALSE(builder.look_up("tor"));
+//   EXPECT_FALSE(builder.look_up("spline"));
+//   EXPECT_FALSE(builder.look_up("toys"));
+
+//   for (auto i = 0; i < std::size(keys); ++i){
+//       EXPECT_EQ(builder.lb(keys[i]), keys[i]);
 //   }
 
-//   auto stats2 = get_stats("ab", "aca");
-//   EXPECT_EQ(stats2.count, 3);
-//   for(const auto word : {"aba", "abb", "aca"}){
-//     const auto& v = stats2.words;
-//     EXPECT_TRUE(find(begin(v), end(v), word) != end(v)) << "Word " << word << " was not found" ;
+//   for (auto i = 0; i < std::size(keys); ++i){
+//       EXPECT_EQ(builder.ub(keys[i]), keys[i]);
 //   }
-// }
 
-// TEST(LoudsSparseTest, PrimitiveTrieRange) {
-//   // using namespace std::string_literals;
-//   std::stringstream iss;
-//   iss << "aaa" << std::endl;
-//   iss << "aba" << std::endl;
-//   iss << "abb" << std::endl;
-//   iss << "aca" << std::endl;
-
-  
-//   auto builder = LoudsBuilder<>::from_stream(iss);
-//   auto sparse = LoudsSparse<>::from_builder(builder);
-//   auto _begin = begin(sparse);
-//   auto _end = end(sparse);
-
-//   auto all_keys = [&sparse](){
-//     auto begin = sparse.begin();
-//     auto end = sparse.end();
-//     vector<string> ans{};
-//     for (auto it = begin; it != end; ++it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-
-//   auto all_keys_reversed = [&sparse](){
-//     auto begin = sparse.begin();
-//     auto end = sparse.end();
-//     vector<string> ans{};
-//     for (auto it = end; it != begin; --it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-//   auto expected_keys = vector<string>{"aaa", "aba", "abb"};
-//   auto expected_keys_reversed = vector<string>{"aca", "abb", "aba"};
-//   EXPECT_TRUE(all_keys() == expected_keys);
-//   EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
-// }
-
-// TEST(LoudsSparseTest, ComplexTrieRange) {
-//   // using namespace std::string_literals;
-//   std::stringstream iss;
-//   iss << "f" << std::endl;
-//   iss << "farther" << std::endl;
-//   iss << "fas" << std::endl;
-//   iss << "fasten" << std::endl;
-//   iss << "fat" << std::endl;
-//   iss << "splice" << std::endl;
-//   iss << "topper" << std::endl;
-//   iss << "toy" << std::endl;
-//   iss << "tries" << std::endl;
-//   iss << "tripper" << std::endl;
-//   iss << "trying" << std::endl;
-
-  
-//   auto builder = LoudsBuilder<>::from_stream(iss);
-//   auto sparse = LoudsSparse::from_builder(builder);
-
-//   auto all_keys = [&sparse](){
-//     auto begin = sparse.begin();
-//     auto end = sparse.end();
-//     vector<string> ans{};
-//     for (auto it = begin; it != end; ++it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-
-//   auto all_keys_reversed = [&sparse](){
-//     auto begin = sparse.begin();
-//     auto end = sparse.end();
-//     vector<string> ans{};
-//     for (auto it = end; it != begin; --it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-
-//   auto all_keys_lb = [&sparse](auto key){
-//     auto begin = sparse.lb(key);
-//     auto end = sparse.end();
-//     vector<string> ans{};
-//     for (auto it = begin; it != end; ++it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-//   auto all_keys_ub = [&sparse](auto key){
-//     auto begin = sparse.begin();
-//     auto end = sparse.ub(key);
-//     vector<string> ans{};
-//     for (auto it = begin; it != end; ++it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-//   auto expected_keys = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
-//   auto expected_keys_reversed = vector<string>{"trying", "tripper", "tries", "toy", "topper", "splice", "fat", "fasten", "fas", "farther"};
-//   auto expected_keys_lb = vector<string>{"fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
-//   auto expected_keys_ub = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper"};
-//   EXPECT_TRUE(all_keys() == expected_keys) << "Not all keys are as expected";
-//   EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed) << "Not all reversed keys are as expected";
-//   EXPECT_TRUE(all_keys_lb("fasten") == expected_keys_lb) << "Not all keys lb are as expected";
-//   EXPECT_TRUE(all_keys_ub("toy") == expected_keys_ub) << "Not all keys ub are as expected";
-// }
+//   for (auto i = 0; i < std::size(keys)-2; ++i){
+//       EXPECT_TRUE(builder.look_up_range(keys[i], keys[i+2])) << "from: " << keys[i] << " to: " << keys[i+2];
+//   }
 
 
-// TEST(LoudsDenseTest, PrimitiveTrieRange) {
-//   std::stringstream iss;
-//   iss << "aaa" << std::endl;
-//   iss << "aba" << std::endl;
-//   iss << "abb" << std::endl;
-//   iss << "aca" << std::endl;
-
-  
-//   auto builder = LoudsBuilder<>::from_stream(iss);
-//   auto dense = LoudsDense<>::from_builder(builder);
-//   auto _begin = begin(dense);
-//   auto _end = end(dense);
-
-//   auto all_keys = [&dense](){
-//     auto begin = dense.begin();
-//     auto end = dense.end();
-//     vector<string> ans{};
-//     for (auto it = begin; it != end; ++it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-
-//   auto all_keys_reversed = [&dense](){
-//     auto begin = dense.begin();
-//     auto end = dense.end();
-//     vector<string> ans{};
-//     for (auto it = end; it != begin; --it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-//   auto expected_keys = vector<string>{"aaa", "aba", "abb"};
-//   auto expected_keys_reversed = vector<string>{"aca", "abb", "aba"};
-//   EXPECT_TRUE(all_keys() == expected_keys);
-//   EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
-// }
-
-// TEST(LoudsDenseTest, ComplexTrieRange) {
-//   // using namespace std::string_literals;
-//   std::stringstream iss;
-//   iss << "f" << std::endl;
-//   iss << "farther" << std::endl;
-//   iss << "fas" << std::endl;
-//   iss << "fasten" << std::endl;
-//   iss << "fat" << std::endl;
-//   iss << "splice" << std::endl;
-//   iss << "topper" << std::endl;
-//   iss << "toy" << std::endl;
-//   iss << "tries" << std::endl;
-//   iss << "tripper" << std::endl;
-//   iss << "trying" << std::endl;
-
-  
-//   auto builder = LoudsBuilder<>::from_stream(iss);
-//   auto dense = LoudsDense<>::from_builder(builder);
-//   auto all_keys = [&dense](){
-//     auto begin = dense.begin();
-//     auto end = dense.end();
-//     vector<string> ans{};
-//     for (auto it = begin; it != end; ++it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-
-//   auto all_keys_reversed = [&dense](){
-//     auto begin = dense.begin();
-//     auto end = dense.end();
-//     vector<string> ans{};
-//     for (auto it = end; it != begin; --it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-//   auto all_keys_lb = [&dense](auto key){
-//     auto begin = dense.lb(key);
-//     auto end = dense.end();
-//     vector<string> ans{};
-//     for (auto it = begin; it != end; ++it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-//   auto all_keys_ub = [&dense](auto key){
-//     auto begin = dense.begin();
-//     auto end = dense.ub(key);
-//     vector<string> ans{};
-//     for (auto it = begin; it != end; ++it){
-//       auto [prefix, suffix] = *it;
-//       ans.push_back(prefix+suffix);
-//     }
-//     return ans;
-//   };
-//   auto expected_keys = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
-//   auto expected_keys_reversed = vector<string>{"trying", "tripper", "tries", "toy", "topper", "splice", "fat", "fasten", "fas", "farther"};
-//   auto expected_keys_lb = vector<string>{"fasten", "fat", "splice", "topper", "toy", "tries", "tripper"};
-//   auto expected_keys_ub = vector<string>{"f", "farther", "fas", "fasten", "fat", "splice", "topper"};
-//   EXPECT_TRUE(all_keys() == expected_keys);
-//   EXPECT_TRUE(all_keys_reversed() == expected_keys_reversed);
-//   EXPECT_TRUE(all_keys_lb("fasten") == expected_keys_lb);
-//   EXPECT_TRUE(all_keys_ub("toy") == expected_keys_ub);
 // }

@@ -10,6 +10,7 @@ class KeyType(Enum):
 class Distribution(Enum):
     uniform=0
     zip=1
+    worst=2
 
 parser = ArgumentParser()
 parser.add_argument("--key_type",type=KeyType.__getitem__, default="integer")
@@ -23,6 +24,7 @@ n_chars = args.n_chars
 n_keys = args.n_keys
 output = args.output
 rng = np.random.default_rng()
+dist = args.distribution
 keys = rng.choice(10**n_chars, size=n_keys, replace=False)
 keys = np.sort(keys)
 
