@@ -4,13 +4,16 @@ project(surf_cpp)
 # Add local libraries path to the build 
 link_directories(/usr/local/lib)
 
+find_package(benchmark REQUIRED)
+find_package(fmt REQUIRED)
+
 # find_package(dl REQUIRED)
 # find_package(boost_system REQUIRED)
 # find_package(art REQUIRED)
 # find_package(tlx REQUIRED)
 
 # GoogleTest requires at least C++11
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 20) 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=haswell -ftree-vectorize -ffast-math")
 
 include(FetchContent)
@@ -28,9 +31,20 @@ FetchContent_MakeAvailable(googletest)
 # configure_file(data/load_randint data/load_randint COPYONLY)
 # configure_file(data/load_randint data/load_randint_slow COPYONLY)
 # configure_file(data/keys_1M data/keys_1M COPYONLY)
-configure_file(data/keys_100M data/keys_100M COPYONLY)
+configure_file(data/insert_uniform data/insert_uniform COPYONLY)
+configure_file(data/insert_uniform data/insert_zipfian COPYONLY)
+configure_file(data/query_zipfian data/query_zipfian COPYONLY)
+configure_file(data/query_uniform data/query_uniform COPYONLY)
+configure_file(data/insert_words data/insert_words COPYONLY)
+configure_file(data/query_words data/query_words COPYONLY)
+configure_file(data/dna.txt data/dna.txt COPYONLY)
+configure_file(data/wiki.txt data/wiki.txt COPYONLY)
+configure_file(data/geo_names.txt data/geo_names.txt COPYONLY)
+
 
 enable_testing()
+
+
 
 add_executable(
   surf_test
@@ -52,23 +66,9 @@ gtest_discover_tests(surf_test)
 gtest_discover_tests(test_bit_vector)
 
 add_subdirectory(tlx)
-add_subdirectory(google_benchmark)
+
 add_subdirectory(surf_paper)
-add_executable(my_benchmark benchmark/benchmark.cpp)
-target_link_libraries(my_benchmark tlx)
-target_link_libraries(my_benchmark benchmark::benchmark)
-target_link_libraries(my_benchmark ${OPENSSL_LIBRARIES} dl)
-target_link_libraries(my_benchmark tx)
-# target_link_libraries(my_benchmark tcmalloc_minimal)
-# target_link_libraries(my_benchmark ${GPERFTOOLS_PROFILER} profiler)
-# Lind Adaptative Radix trie to the benchmark 
-target_link_libraries(my_benchmark art)
 
-add_executable(benchmark_utils benchmark/utils.cpp)
-target_link_libraries(benchmark_utils benchmark::benchmark)
-target_link_libraries(my_benchmark ${OPENSSL_LIBRARIES} dl)
+add_subdirectory(benchmark)
 
-
-
-
-
+# add_subdirectory(surf/bitvector)
